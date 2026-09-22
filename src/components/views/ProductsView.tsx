@@ -84,7 +84,7 @@ export const ProductsView: React.FC = () => {
     setProductForm({
       name: '',
       brand: '',
-      category_id: categories[0]?.id || '',
+      category_id: categories.find((c) => c.is_active)?.id || '',
       unit: 'ml',
       notes: '',
       is_active: true,
@@ -218,10 +218,11 @@ export const ProductsView: React.FC = () => {
   // Filtragem
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
+      const term = searchTerm.toLowerCase();
       const matchesSearch =
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.brand && p.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (p.category && p.category.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        (p.name || '').toLowerCase().includes(term) ||
+        (p.brand ? p.brand.toLowerCase().includes(term) : false) ||
+        (p.category ? p.category.toLowerCase().includes(term) : false);
 
       const matchesCategory =
         selectedCategoryFilter === 'all' || p.category_id === selectedCategoryFilter;
@@ -433,7 +434,7 @@ export const ProductsView: React.FC = () => {
                       <td className="py-4 px-4">
                         <span className="inline-flex items-center gap-1 rounded-md bg-purple-950/60 border border-purple-800/60 px-2 py-0.5 text-xs font-medium text-purple-300">
                           <Tag className="h-3 w-3 text-purple-400" />
-                          {product.category?.name || 'Sem Categoria'}
+                          {product.category || 'Sem Categoria'}
                         </span>
                       </td>
 
