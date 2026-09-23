@@ -350,12 +350,12 @@ export const EquipmentView: React.FC = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Equipamentos e Ferramentas</h1>
-            <span className="rounded-full bg-blue-900/40 border border-blue-700/50 px-2.5 py-0.5 text-xs font-semibold text-blue-400">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Equipamentos e Ferramentas</h1>
+            <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
               {equipmentList.length} cadastrados
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             Controle de máquinas, lavadoras de alta pressão, extratoras e ferramentas operacionais.
           </p>
         </div>
@@ -363,9 +363,9 @@ export const EquipmentView: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={handleOpenCategoriesModal}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs transition-colors"
           >
-            <Tag className="h-4 w-4 text-purple-400" />
+            <Tag className="h-4 w-4 text-purple-600" />
             Categorias ({categories.length})
           </button>
 
@@ -384,18 +384,18 @@ export const EquipmentView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-slate-400">Total em Operação</span>
+            <span className="text-xs font-semibold uppercase text-slate-300">Total em Operação</span>
             <ShieldCheck className="h-4 w-4 text-blue-400" />
           </div>
           <div className="text-2xl font-black text-white">{stats.active} ativos</div>
-          <span className="text-xs text-slate-500 mt-1 block">
+          <span className="text-xs text-slate-400 mt-1 block">
             {stats.maintenance} em manutenção técnica
           </span>
         </div>
 
         <div className="rounded-2xl border border-purple-900/40 bg-purple-950/20 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-purple-300">
+            <span className="text-xs font-semibold uppercase text-purple-200">
               Investimento do Proprietário
             </span>
             <Briefcase className="h-4 w-4 text-purple-400" />
@@ -403,14 +403,14 @@ export const EquipmentView: React.FC = () => {
           <div className="text-2xl font-black text-white font-mono">
             R$ {stats.ownerInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-purple-400/80 mt-1 block">
+          <span className="text-[11px] text-purple-300 mt-1 block">
             Aporte pessoal • Não consome caixa operacional
           </span>
         </div>
 
         <div className="rounded-2xl border border-blue-900/40 bg-blue-950/20 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-blue-300">
+            <span className="text-xs font-semibold uppercase text-blue-200">
               Caixa da Garage Car
             </span>
             <DollarSign className="h-4 w-4 text-blue-400" />
@@ -418,7 +418,7 @@ export const EquipmentView: React.FC = () => {
           <div className="text-2xl font-black text-white font-mono">
             R$ {stats.companyInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-blue-400/80 mt-1 block">
+          <span className="text-[11px] text-blue-300 mt-1 block">
             Adquirido com recursos da empresa
           </span>
         </div>

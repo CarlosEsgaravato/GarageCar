@@ -208,7 +208,7 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-900">{inProgressServices.length}</span>
-            <span className="text-xs text-slate-400">veículo(s) no pátio</span>
+            <span className="text-xs text-slate-500 font-medium">veículo(s) no pátio</span>
           </div>
         </div>
 
@@ -224,7 +224,7 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-900">{completedToday.length}</span>
-            <span className="text-xs text-slate-400">serviços entregues</span>
+            <span className="text-xs text-slate-500 font-medium">serviços entregues</span>
           </div>
         </div>
 
@@ -242,7 +242,7 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
             <span className="text-2xl font-bold text-indigo-900">
               R$ {revenueToday.toFixed(2)}
             </span>
-            <span className="text-xs text-slate-400">em serviços</span>
+            <span className="text-xs text-slate-500 font-medium">em serviços</span>
           </div>
         </div>
 

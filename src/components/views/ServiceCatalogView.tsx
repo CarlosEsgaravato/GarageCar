@@ -265,12 +265,12 @@ export const ServiceCatalogView: React.FC = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Catálogo de Serviços</h1>
-            <span className="rounded-full bg-blue-900/40 border border-blue-700/50 px-2.5 py-0.5 text-xs font-semibold text-blue-400">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Catálogo de Serviços</h1>
+            <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
               {services.length} serviços cadastrados
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             Gestão dos pacotes de lavagem, adicionais estéticos e matriz de preços por categoria de veículo.
           </p>
         </div>
@@ -286,13 +286,13 @@ export const ServiceCatalogView: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 text-sm font-semibold">
+      <div className="flex border-b border-slate-300 text-sm font-semibold">
         <button
           onClick={() => setActiveTab('catalog')}
           className={`pb-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'catalog'
-              ? 'border-blue-500 text-blue-400 font-bold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-blue-600 text-blue-600 font-bold'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <Sparkles className="h-4 w-4" />
@@ -302,8 +302,8 @@ export const ServiceCatalogView: React.FC = () => {
           onClick={() => setActiveTab('matrix')}
           className={`pb-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'matrix'
-              ? 'border-blue-500 text-blue-400 font-bold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-blue-600 text-blue-600 font-bold'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <Coins className="h-4 w-4" />
@@ -313,8 +313,8 @@ export const ServiceCatalogView: React.FC = () => {
           onClick={() => setActiveTab('surcharges')}
           className={`pb-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'surcharges'
-              ? 'border-blue-500 text-blue-400 font-bold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-blue-600 text-blue-600 font-bold'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <Layers className="h-4 w-4" />
@@ -329,8 +329,8 @@ export const ServiceCatalogView: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold text-white">Pacotes Principais de Lavagem</h2>
-                <p className="text-xs text-slate-400">
+                <h2 className="text-lg font-bold text-slate-900">Pacotes Principais de Lavagem</h2>
+                <p className="text-xs text-slate-600">
                   Lavagens com preços indexados à categoria comercial do veículo.
                 </p>
               </div>
@@ -465,8 +465,8 @@ export const ServiceCatalogView: React.FC = () => {
           {/* Seção 2: Serviços Adicionais e Especializados */}
           <div className="pt-4 border-t border-slate-800">
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-white">Serviços Adicionais Especializados</h2>
-              <p className="text-xs text-slate-400">
+              <h2 className="text-lg font-bold text-slate-900">Serviços Adicionais Especializados</h2>
+              <p className="text-xs text-slate-600">
                 Procedimentos pontuais que podem ser contratados individualmente ou adicionados aos pacotes.
               </p>
             </div>
@@ -492,8 +492,8 @@ export const ServiceCatalogView: React.FC = () => {
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-white text-base mb-1">{service.name}</h3>
-                      <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                      <h3 className="font-bold text-slate-100 text-base mb-1">{service.name}</h3>
+                      <p className="text-xs text-slate-300 leading-relaxed mb-3">
                         {service.description}
                       </p>
 

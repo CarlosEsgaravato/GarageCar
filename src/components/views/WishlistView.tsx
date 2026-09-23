@@ -356,14 +356,14 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-600/20 text-pink-400 border border-pink-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100 text-pink-700 border border-pink-200">
               <BookmarkPlus className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                 Lista de Desejos / Aquisições
               </h1>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600">
                 Planejamento estratégico de compras e investimentos futuros da Garage Car
               </p>
             </div>
@@ -375,10 +375,10 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
             id="btn-refresh-wishlist"
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 px-3.5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs transition-all disabled:opacity-50"
             title="Recarregar dados"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </button>
 
@@ -394,15 +394,15 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
       </div>
 
       {/* Banner de Regra de Negócio: Somente Planejamento */}
-      <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-blue-950/60 border border-blue-800/40 text-blue-400 shrink-0 mt-0.5">
+      <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 text-slate-700 flex items-start gap-3">
+        <div className="p-2 rounded-lg bg-blue-100 border border-blue-200 text-blue-700 shrink-0 mt-0.5">
           <Info className="h-4 w-4" />
         </div>
         <div className="text-xs space-y-1">
-          <p className="font-semibold text-slate-100">
+          <p className="font-semibold text-blue-950">
             Regra Contábil & Planejamento Independente
           </p>
-          <p className="text-slate-400 leading-relaxed">
+          <p className="text-slate-700 leading-relaxed">
             A lista de desejos serve estritamente para planejamento e priorização. Marcar um item como{' '}
             <strong className="text-emerald-400">Adquirido</strong> registra apenas o estado na wishlist e{' '}
             <span className="text-amber-300 font-medium">

@@ -196,12 +196,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateToVehicles }
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Clientes</h1>
-            <span className="rounded-full bg-blue-900/40 border border-blue-700/50 px-2.5 py-0.5 text-xs font-semibold text-blue-400">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Clientes</h1>
+            <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
               {clients.length} cadastrados
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             Gestão simplificada de clientes da estética automotiva (sem exigência de CPF).
           </p>
         </div>
@@ -217,11 +217,11 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateToVehicles }
       </div>
 
       {/* Regra de Negócio: Ausência de CPF */}
-      <div className="rounded-xl border border-blue-900/30 bg-blue-950/20 p-3.5 flex items-start gap-3">
-        <Info className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-300 space-y-1">
-          <p className="font-semibold text-blue-300">Regra Operacional Garage Car:</p>
-          <p className="text-slate-400">
+      <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3.5 flex items-start gap-3">
+        <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+        <div className="text-xs text-slate-700 space-y-1">
+          <p className="font-semibold text-blue-900">Regra Operacional Garage Car:</p>
+          <p className="text-slate-600">
             O sistema <strong>não solicita nem armazena CPF</strong> de clientes. A identificação é
             feita pelo nome, telefone de contato e vínculo com os veículos atendidos.
           </p>

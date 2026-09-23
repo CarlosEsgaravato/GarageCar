@@ -238,23 +238,23 @@ export const ReportsView: React.FC = () => {
       )}
 
       {/* Badge Informativo do Intervalo Vigente */}
-      <div className="flex items-center justify-between px-1 text-xs text-slate-400">
+      <div className="flex items-center justify-between px-1 text-xs text-slate-600">
         <div className="flex items-center gap-2">
-          <Calendar className="h-3.5 w-3.5 text-blue-400" />
+          <Calendar className="h-3.5 w-3.5 text-blue-600" />
           <span>
             Período analisado:{' '}
-            <strong className="text-slate-200">{dateRange.label}</strong> (
+            <strong className="text-slate-900">{dateRange.label}</strong> (
             {reportsService.formatDateBR(dateRange.start)} até{' '}
             {reportsService.formatDateBR(dateRange.end)})
           </span>
         </div>
-        <span className="hidden sm:inline text-[11px] text-slate-500">
+        <span className="hidden sm:inline text-[11px] text-slate-600">
           Valores monetários em BRL (R$)
         </span>
       </div>
 
       {/* 2. Barra de Navegação das Abas */}
-      <div className="border-b border-slate-800 overflow-x-auto">
+      <div className="border-b border-slate-200 overflow-x-auto">
         <div className="flex gap-2 min-w-max pb-1">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -264,8 +264,8 @@ export const ReportsView: React.FC = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 ${
                   isActive
-                    ? 'border-blue-500 bg-slate-900 text-blue-400 shadow-sm'
-                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                    ? 'border-blue-600 bg-white text-blue-600 shadow-xs font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 {tab.icon}

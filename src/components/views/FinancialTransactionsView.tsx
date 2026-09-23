@@ -443,14 +443,14 @@ export const FinancialTransactionsView: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               Movimentações Financeiras
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               Fluxo de Caixa
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             Gestão auditada de entradas de serviços quitados, saídas operacionais e resultado da oficina.
           </p>
         </div>
@@ -460,10 +460,10 @@ export const FinancialTransactionsView: React.FC = () => {
             id="btn-refresh-financial"
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700/80 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium border border-slate-300 shadow-xs transition-all disabled:opacity-50"
             title="Atualizar transações"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-emerald-400' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </button>
 
