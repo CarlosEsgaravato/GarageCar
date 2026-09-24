@@ -1781,6 +1781,7 @@ export const operationService = {
     vehicle: Vehicle;
     service: ServiceCatalogItem;
     basePrice: number;
+    finalPrice?: number;
     conditionLevel?: ConditionLevel;
     surchargeAmount?: number;
     discountAmount?: number;
@@ -1796,7 +1797,11 @@ export const operationService = {
 
     const surcharge = Number(params.surchargeAmount || 0);
     const discount = Number(params.discountAmount || 0);
-    const finalPrice = Math.max(0, params.basePrice + surcharge - discount);
+    const calculatedPrice = Math.max(0, params.basePrice + surcharge - discount);
+    const finalPrice =
+      params.finalPrice !== undefined && params.finalPrice !== null
+        ? Math.max(0, Number(params.finalPrice))
+        : calculatedPrice;
 
     const newService: ExecutedService = {
       id: crypto.randomUUID(),
@@ -1873,7 +1878,8 @@ export const operationService = {
     vehicle: Vehicle,
     service: ServiceCatalogItem,
     basePrice: number,
-    startedAt?: string
+    startedAt?: string,
+    customFinalPrice?: number
   ): Promise<ExecutedService> => {
     const now = new Date().toISOString();
     const actualStart = startedAt || now;
@@ -1884,7 +1890,15 @@ export const operationService = {
 
     const surcharge = Number(appointment.surcharge_amount || 0);
     const discount = Number(appointment.discount_amount || 0);
-    const finalPrice = Math.max(0, Number(basePrice) + surcharge - discount);
+    const calculatedPrice = Math.max(0, Number(basePrice) + surcharge - discount);
+    const finalPrice =
+      customFinalPrice !== undefined && customFinalPrice !== null
+        ? Math.max(0, Number(customFinalPrice))
+        : appointment.estimated_price !== undefined &&
+          appointment.estimated_price !== null &&
+          appointment.estimated_price > 0
+        ? Math.max(0, Number(appointment.estimated_price))
+        : calculatedPrice;
 
     const newService: ExecutedService = {
       id: crypto.randomUUID(),
@@ -2118,7 +2132,7 @@ export const operationService = {
           condition_level: currentService.condition_level || 'normal',
           surcharge_amount: currentService.surcharge_amount || 0,
           discount_amount: currentService.discount_amount || 0,
-          final_price: currentService.final_price || payload.finalPrice,
+          final_price: payload.finalPrice !== undefined ? payload.finalPrice : (currentService.final_price || 0),
           started_at: currentService.started_at || currentService.created_at,
           is_rework: currentService.is_rework || false,
           payment_status: currentService.payment_status || 'pending',

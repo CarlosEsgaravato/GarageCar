@@ -58,6 +58,8 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
   const [conditionLevel, setConditionLevel] = useState<ConditionLevel>('normal');
   const [surchargeAmount, setSurchargeAmount] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [chargedPrice, setChargedPrice] = useState<number | ''>('');
+  const [isPriceCustomized, setIsPriceCustomized] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
 
   // Status Alerts
@@ -138,16 +140,66 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
     return priceRecord ? priceRecord.price : 0;
   };
 
-  // Recalcula acréscimo ao mudar nível de condição
-  useEffect(() => {
-    if (systemSettings) {
-      const suggested = systemSettings.condition_surcharges[conditionLevel] || 0;
-      setSurchargeAmount(suggested);
-    }
-  }, [conditionLevel, systemSettings]);
-
   const basePrice = getBasePrice();
-  const estimatedPrice = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+  const suggestedPrice = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+
+  // Sugestão automática do catálogo para novos serviços/veículos quando não editado manualmente
+  useEffect(() => {
+    if (!isPriceCustomized) {
+      if (selectedService && selectedVehicle) {
+        const priceRecord = servicePrices.find(
+          (p) =>
+            p.service_id === selectedService.id &&
+            p.commercial_category === selectedVehicle.commercial_category
+        );
+        const base = priceRecord ? priceRecord.price : 0;
+        setChargedPrice(Math.max(0, base + Number(surchargeAmount || 0) - Number(discountAmount || 0)));
+      } else {
+        setChargedPrice('');
+      }
+    }
+  }, [selectedService?.id, selectedVehicle?.commercial_category, isPriceCustomized, surchargeAmount, discountAmount]);
+
+  // Recalcula acréscimo ao mudar nível de condição
+  const handleConditionChange = (newLevel: ConditionLevel) => {
+    setConditionLevel(newLevel);
+    if (systemSettings) {
+      const suggested = systemSettings.condition_surcharges[newLevel] || 0;
+      setSurchargeAmount(suggested);
+      if (!isPriceCustomized) {
+        setChargedPrice(Math.max(0, basePrice + suggested - Number(discountAmount || 0)));
+      }
+    }
+  };
+
+  const handleSurchargeChange = (val: number) => {
+    setSurchargeAmount(val);
+    if (!isPriceCustomized) {
+      setChargedPrice(Math.max(0, basePrice + val - Number(discountAmount || 0)));
+    }
+  };
+
+  const handleDiscountChange = (val: number) => {
+    setDiscountAmount(val);
+    if (!isPriceCustomized) {
+      setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - val));
+    }
+  };
+
+  const handleServiceChange = (id: string) => {
+    setServiceId(id);
+    setIsPriceCustomized(false);
+  };
+
+  const handleChargedPriceChange = (val: number | '') => {
+    setIsPriceCustomized(true);
+    setChargedPrice(val);
+  };
+
+  const handleRestoreSuggested = () => {
+    setIsPriceCustomized(false);
+    setChargedPrice(suggestedPrice);
+  };
 
   // Verificação de conflito e horários excepcionais em tempo real (Não bloqueantes)
   useEffect(() => {
@@ -192,6 +244,11 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
       return;
     }
 
+    const effectivePrice =
+      chargedPrice === ''
+        ? suggestedPrice
+        : Math.max(0, Number(chargedPrice));
+
     setIsLoading(true);
     try {
       const saved = await operationService.saveAppointment({
@@ -202,7 +259,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
         scheduled_start: scheduledStart,
         scheduled_end: scheduledEnd,
         estimated_duration_minutes: durationMinutes,
-        estimated_price: estimatedPrice,
+        estimated_price: effectivePrice,
         condition_level: conditionLevel,
         surcharge_amount: Number(surchargeAmount || 0),
         discount_amount: Number(discountAmount || 0),
@@ -330,7 +387,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
             </label>
             <select
               value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
+              onChange={(e) => handleServiceChange(e.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-xs focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
             >
               <option value="">Selecione o serviço do catálogo...</option>
@@ -400,7 +457,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                 </label>
                 <select
                   value={conditionLevel}
-                  onChange={(e) => setConditionLevel(e.target.value as ConditionLevel)}
+                  onChange={(e) => handleConditionChange(e.target.value as ConditionLevel)}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
                 >
                   <option value="normal">Normal (+R$ 0,00)</option>
@@ -419,7 +476,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                   step="0.01"
                   min="0"
                   value={surchargeAmount}
-                  onChange={(e) => setSurchargeAmount(Number(e.target.value))}
+                  onChange={(e) => handleSurchargeChange(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
@@ -433,28 +490,63 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                   step="0.01"
                   min="0"
                   value={discountAmount}
-                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  onChange={(e) => handleDiscountChange(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
             </div>
 
-            {/* Resumo de Preço */}
-            <div className="flex flex-wrap items-center justify-between border-t border-slate-200/80 pt-3 text-xs">
-              <div className="text-slate-500 space-x-2">
-                <span>Preço Base: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong></span>
-                {surchargeAmount > 0 && (
-                  <span className="text-amber-700">+ Condição: R$ {Number(surchargeAmount).toFixed(2)}</span>
-                )}
-                {discountAmount > 0 && (
-                  <span className="text-rose-700">- Desconto: R$ {Number(discountAmount).toFixed(2)}</span>
-                )}
-              </div>
-              <div className="text-right">
-                <span className="text-slate-500 text-[11px] block">Valor Estimado Previsto:</span>
-                <span className="text-base font-bold text-blue-700">
-                  R$ {estimatedPrice.toFixed(2)}
-                </span>
+            {/* Valor Cobrado Previsto Editável */}
+            <div className="border-t border-slate-200/80 pt-3 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div>
+                  <label htmlFor="appointment-charged-price" className="block text-xs font-bold text-slate-800 mb-1">
+                    Valor cobrado (R$) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative rounded-lg shadow-2xs">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-500">
+                        R$
+                      </span>
+                      <input
+                        id="appointment-charged-price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={chargedPrice}
+                        onChange={(e) => handleChargedPriceChange(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-40 rounded-lg border border-blue-400 bg-white pl-9 pr-3 py-2 text-sm font-bold text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                      />
+                    </div>
+                    {isPriceCustomized && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreSuggested}
+                        className="text-[11px] text-blue-600 hover:text-blue-800 underline font-medium"
+                      >
+                        Restaurar sugerido
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                    {isPriceCustomized && Number(chargedPrice) !== suggestedPrice && (
+                      <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
+                    )}
+                  </p>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    Base: R$ {basePrice.toFixed(2)}
+                    {surchargeAmount > 0 && ` + Condição: R$ ${Number(surchargeAmount).toFixed(2)}`}
+                    {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+                  </div>
+                </div>
+
+                <div className="text-right sm:self-end">
+                  <span className="text-slate-500 text-[11px] block">Valor Estimado Previsto:</span>
+                  <span className="text-2xl font-black text-blue-700">
+                    R$ {(chargedPrice === '' ? suggestedPrice : Number(chargedPrice)).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

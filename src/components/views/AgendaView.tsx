@@ -923,6 +923,14 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                     {startingApt.scheduled_date} das {startingApt.scheduled_start} às {startingApt.scheduled_end}
                   </span>
                 </div>
+                {startingApt.estimated_price !== undefined && (
+                  <div>
+                    <span className="text-slate-500 font-medium">Valor Previsto: </span>
+                    <strong className="text-emerald-700 font-bold">
+                      R$ {Number(startingApt.estimated_price).toFixed(2)}
+                    </strong>
+                  </div>
+                )}
               </div>
 
               {/* Opções: Iniciar agora vs Informar manualmente */}

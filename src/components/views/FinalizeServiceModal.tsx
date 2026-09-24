@@ -58,6 +58,27 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   const [surchargeAmount, setSurchargeAmount] = useState<number>(service.surcharge_amount || 0);
   const [discountAmount, setDiscountAmount] = useState<number>(service.discount_amount || 0);
 
+  // Preço base/sugerido do catálogo preservado em base_price_snap
+  const basePrice = service.base_price_snap || 0;
+
+  // Valor cobrado editável pelo operador (sugestão inicial = final_price existente ou base + acréscimo - desconto)
+  const [chargedPrice, setChargedPrice] = useState<number | ''>(() => {
+    if (service.final_price !== undefined && service.final_price !== null && service.final_price > 0) {
+      return service.final_price;
+    }
+    return Math.max(0, (service.base_price_snap || 0) + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+  });
+
+  const [isPriceCustomized, setIsPriceCustomized] = useState<boolean>(() => {
+    const calc = Math.max(0, (service.base_price_snap || 0) + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+    return (
+      service.final_price !== undefined &&
+      service.final_price !== null &&
+      service.final_price > 0 &&
+      Math.abs(service.final_price - calc) > 0.001
+    );
+  });
+
   // Consumo de Produtos
   const [consumedProducts, setConsumedProducts] = useState<ProductConsumptionInput[]>([]);
   const [selectedAddProductId, setSelectedAddProductId] = useState<string>('');
@@ -77,6 +98,29 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   // Inicialização ao abrir
   useEffect(() => {
     if (isOpen) {
+      setConditionLevel(service.condition_level || 'normal');
+      setConditionNotes(service.condition_notes || '');
+      setSurchargeAmount(service.surcharge_amount || 0);
+      setDiscountAmount(service.discount_amount || 0);
+      setIsRework(service.is_rework || false);
+      setReworkNotes(service.rework_notes || '');
+      setNotes(service.notes || '');
+
+      const base = service.base_price_snap || 0;
+      const initialPrice =
+        service.final_price !== undefined && service.final_price !== null && service.final_price > 0
+          ? service.final_price
+          : Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+      setChargedPrice(initialPrice);
+
+      const calc = Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+      setIsPriceCustomized(
+        service.final_price !== undefined &&
+        service.final_price !== null &&
+        service.final_price > 0 &&
+        Math.abs(service.final_price - calc) > 0.001
+      );
+
       loadDependenciesAndRecipe();
     }
   }, [isOpen, service]);
@@ -146,25 +190,54 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   const hoursDisplay = Math.floor(durationMinutes / 60);
   const minutesDisplay = durationMinutes % 60;
 
-  // Recalcula acréscimo quando o nível de condição muda
-  const handleConditionChange = (newLevel: ConditionLevel) => {
-    setConditionLevel(newLevel);
-    if (systemSettings) {
-      const suggested = systemSettings.condition_surcharges[newLevel] || 0;
-      setSurchargeAmount(suggested);
-    }
-  };
-
-  // Cálculo do preço final
-  const basePrice = service.base_price_snap || 0;
-  const finalPrice = Math.max(
+  // Sugestão automática calculada a partir do catálogo + acréscimo - desconto
+  const suggestedPrice = Math.max(
     0,
     basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0)
   );
 
+  // Valor final efetivo a ser cobrado
+  const effectiveFinalPrice = chargedPrice === '' ? 0 : Math.max(0, Number(chargedPrice));
+
+  // Recalcula acréscimo quando o nível de condição muda
+  const handleConditionChange = (newLevel: ConditionLevel) => {
+    setConditionLevel(newLevel);
+    if (systemSettings) {
+      const suggestedSurcharge = systemSettings.condition_surcharges[newLevel] || 0;
+      setSurchargeAmount(suggestedSurcharge);
+      if (!isPriceCustomized) {
+        setChargedPrice(Math.max(0, basePrice + suggestedSurcharge - Number(discountAmount || 0)));
+      }
+    }
+  };
+
+  const handleSurchargeChange = (newSurcharge: number) => {
+    setSurchargeAmount(newSurcharge);
+    if (!isPriceCustomized) {
+      setChargedPrice(Math.max(0, basePrice + newSurcharge - Number(discountAmount || 0)));
+    }
+  };
+
+  const handleDiscountChange = (newDiscount: number) => {
+    setDiscountAmount(newDiscount);
+    if (!isPriceCustomized) {
+      setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - newDiscount));
+    }
+  };
+
+  const handleChargedPriceChange = (val: number | '') => {
+    setIsPriceCustomized(true);
+    setChargedPrice(val);
+  };
+
+  const handleRestoreSuggested = () => {
+    setIsPriceCustomized(false);
+    setChargedPrice(suggestedPrice);
+  };
+
   // Produtividade: R$/hora
   const revenuePerHour =
-    durationHours > 0 ? Math.round((finalPrice / durationHours) * 100) / 100 : finalPrice;
+    durationHours > 0 ? Math.round((effectiveFinalPrice / durationHours) * 100) / 100 : effectiveFinalPrice;
 
   // Atualiza quantidade de um produto consumido e recalcula FIFO
   const handleQuantityChange = async (index: number, newQty: number) => {
@@ -266,10 +339,10 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
     return sum + itemTotal;
   }, 0);
 
-  const simpleGrossMargin = Math.round((finalPrice - totalProductsCost) * 100) / 100;
+  const simpleGrossMargin = Math.round((effectiveFinalPrice - totalProductsCost) * 100) / 100;
   const simpleGrossMarginPercent =
-    finalPrice > 0
-      ? Math.round(((finalPrice - totalProductsCost) / finalPrice) * 10000) / 100
+    effectiveFinalPrice > 0
+      ? Math.round(((effectiveFinalPrice - totalProductsCost) / effectiveFinalPrice) * 10000) / 100
       : 0;
 
   // Verifica se algum produto terá estoque negativo (Requisito 14 e TESTE 4)
@@ -281,6 +354,12 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
     e.preventDefault();
     if (isRework && !reworkNotes.trim()) {
       alert('Por favor, informe a justificativa do retrabalho.');
+      return;
+    }
+
+    const finalPriceNum = chargedPrice === '' ? 0 : Number(chargedPrice);
+    if (isNaN(finalPriceNum) || finalPriceNum < 0) {
+      alert('Por favor, informe um valor cobrado válido (número maior ou igual a zero).');
       return;
     }
 
@@ -313,7 +392,7 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
         conditionNotes: conditionNotes.trim(),
         surchargeAmount: Number(surchargeAmount || 0),
         discountAmount: Number(discountAmount || 0),
-        finalPrice: finalPrice,
+        finalPrice: finalPriceNum,
         usedProducts: consumedProducts,
         paymentStatus: paymentStatus,
         paymentMethod: paymentStatus === 'paid' ? paymentMethod : undefined,
@@ -475,7 +554,7 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                   step="0.01"
                   min="0"
                   value={surchargeAmount}
-                  onChange={(e) => setSurchargeAmount(Number(e.target.value))}
+                  onChange={(e) => handleSurchargeChange(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
@@ -489,23 +568,61 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                   step="0.01"
                   min="0"
                   value={discountAmount}
-                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  onChange={(e) => handleDiscountChange(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
             </div>
 
-            {/* Totalizador Financeiro do Serviço */}
-            <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-xs">
-              <div className="text-slate-500">
-                Base: R$ {basePrice.toFixed(2)}
-                {surchargeAmount > 0 && ` + Acréscimo: R$ ${Number(surchargeAmount).toFixed(2)}`}
-                {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+            {/* Totalizador Financeiro e Campo de Valor Cobrado Editável */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-slate-200 pt-3 gap-3 text-xs">
+              <div>
+                <label htmlFor="finalize-charged-price" className="block text-xs font-bold text-slate-800 mb-1">
+                  Valor cobrado (R$) *
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="relative rounded-lg shadow-2xs">
+                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-500">
+                      R$
+                    </span>
+                    <input
+                      id="finalize-charged-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={chargedPrice}
+                      onChange={(e) => handleChargedPriceChange(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-40 rounded-lg border border-blue-400 bg-white pl-9 pr-3 py-2 text-sm font-bold text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                    />
+                  </div>
+                  {isPriceCustomized && (
+                    <button
+                      type="button"
+                      onClick={handleRestoreSuggested}
+                      className="text-[11px] text-blue-600 hover:text-blue-800 underline font-medium"
+                    >
+                      Restaurar sugerido
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                  {isPriceCustomized && Number(chargedPrice) !== suggestedPrice && (
+                    <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
+                  )}
+                </p>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Base: R$ {basePrice.toFixed(2)}
+                  {surchargeAmount > 0 && ` + Acréscimo: R$ ${Number(surchargeAmount).toFixed(2)}`}
+                  {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+                </div>
               </div>
-              <div className="text-right">
+
+              <div className="text-right sm:self-end">
                 <span className="text-[11px] text-slate-500 block">Preço Final do Serviço:</span>
-                <span className="text-lg font-bold text-slate-900">
-                  R$ {finalPrice.toFixed(2)}
+                <span className="text-2xl font-black text-slate-900">
+                  R$ {effectiveFinalPrice.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -665,7 +782,7 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                   Margem Bruta Simples do Atendimento
                 </span>
                 <span className="text-slate-600">
-                  Preço Final (R$ {finalPrice.toFixed(2)}) - Custo Insumos (R$ {totalProductsCost.toFixed(2)})
+                  Preço Final (R$ {effectiveFinalPrice.toFixed(2)}) - Custo Insumos (R$ {totalProductsCost.toFixed(2)})
                 </span>
               </div>
               <div className="text-right">

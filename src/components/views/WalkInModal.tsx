@@ -36,6 +36,8 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const [conditionLevel, setConditionLevel] = useState<ConditionLevel>('normal');
   const [surchargeAmount, setSurchargeAmount] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [chargedPrice, setChargedPrice] = useState<number | ''>('');
+  const [isPriceCustomized, setIsPriceCustomized] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -47,6 +49,12 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
     if (isOpen) {
       loadData();
       setStartMode('now');
+      setConditionLevel('normal');
+      setSurchargeAmount(0);
+      setDiscountAmount(0);
+      setChargedPrice('');
+      setIsPriceCustomized(false);
+      setNotes('');
       const now = new Date();
       const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
         .toISOString()
@@ -89,14 +97,6 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
     }
   }, [clientId, clientVehicles]);
 
-  // Recalcula acréscimo ao mudar nível de condição
-  useEffect(() => {
-    if (systemSettings) {
-      const suggested = systemSettings.condition_surcharges[conditionLevel] || 0;
-      setSurchargeAmount(suggested);
-    }
-  }, [conditionLevel, systemSettings]);
-
   // Busca preço base do catálogo de preços por categoria comercial do veículo
   const getBasePrice = (): number => {
     if (!selectedService || !selectedVehicle) return 0;
@@ -109,7 +109,65 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   };
 
   const basePrice = getBasePrice();
-  const finalPrice = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+  const suggestedPrice = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+
+  // Recalcula e sugere o preço sempre que serviço ou veículo mudar se o operador não tiver editado manualmente
+  useEffect(() => {
+    if (!isPriceCustomized) {
+      if (selectedService && selectedVehicle) {
+        const priceRecord = servicePrices.find(
+          (p) =>
+            p.service_id === selectedService.id &&
+            p.commercial_category === selectedVehicle.commercial_category
+        );
+        const base = priceRecord ? priceRecord.price : 0;
+        setChargedPrice(Math.max(0, base + Number(surchargeAmount || 0) - Number(discountAmount || 0)));
+      } else {
+        setChargedPrice('');
+      }
+    }
+  }, [selectedService?.id, selectedVehicle?.commercial_category, isPriceCustomized, surchargeAmount, discountAmount]);
+
+  // Recalcula acréscimo ao mudar nível de condição
+  const handleConditionChange = (newLevel: ConditionLevel) => {
+    setConditionLevel(newLevel);
+    if (systemSettings) {
+      const suggested = systemSettings.condition_surcharges[newLevel] || 0;
+      setSurchargeAmount(suggested);
+      if (!isPriceCustomized) {
+        setChargedPrice(Math.max(0, basePrice + suggested - Number(discountAmount || 0)));
+      }
+    }
+  };
+
+  const handleSurchargeChange = (val: number) => {
+    setSurchargeAmount(val);
+    if (!isPriceCustomized) {
+      setChargedPrice(Math.max(0, basePrice + val - Number(discountAmount || 0)));
+    }
+  };
+
+  const handleDiscountChange = (val: number) => {
+    setDiscountAmount(val);
+    if (!isPriceCustomized) {
+      setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - val));
+    }
+  };
+
+  const handleServiceChange = (id: string) => {
+    setServiceId(id);
+    setIsPriceCustomized(false);
+  };
+
+  const handleChargedPriceChange = (val: number | '') => {
+    setIsPriceCustomized(true);
+    setChargedPrice(val);
+  };
+
+  const handleRestoreSuggested = () => {
+    setIsPriceCustomized(false);
+    setChargedPrice(suggestedPrice);
+  };
 
   const handleStartService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +181,12 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
     }
     if (!selectedService) {
       alert('Selecione o serviço.');
+      return;
+    }
+
+    const finalPriceNum = chargedPrice === '' ? 0 : Number(chargedPrice);
+    if (isNaN(finalPriceNum) || finalPriceNum < 0) {
+      alert('Informe um valor cobrado válido (número maior ou igual a zero).');
       return;
     }
 
@@ -143,6 +207,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
         vehicle: selectedVehicle,
         service: selectedService,
         basePrice: basePrice,
+        finalPrice: finalPriceNum,
         conditionLevel: conditionLevel,
         surchargeAmount: Number(surchargeAmount || 0),
         discountAmount: Number(discountAmount || 0),
@@ -246,7 +311,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
             <select
               required
               value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
+              onChange={(e) => handleServiceChange(e.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
             >
               <option value="">Selecione o serviço...</option>
@@ -271,7 +336,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                 </label>
                 <select
                   value={conditionLevel}
-                  onChange={(e) => setConditionLevel(e.target.value as ConditionLevel)}
+                  onChange={(e) => handleConditionChange(e.target.value as ConditionLevel)}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:outline-hidden"
                 >
                   <option value="normal">Normal (+R$ 0,00)</option>
@@ -290,7 +355,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                   step="0.01"
                   min="0"
                   value={surchargeAmount}
-                  onChange={(e) => setSurchargeAmount(Number(e.target.value))}
+                  onChange={(e) => handleSurchargeChange(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:outline-hidden"
                 />
               </div>
@@ -304,31 +369,64 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                   step="0.01"
                   min="0"
                   value={discountAmount}
-                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  onChange={(e) => handleDiscountChange(Number(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:outline-hidden"
                 />
               </div>
             </div>
 
-            {/* Cálculo em tempo real */}
-            <div className="flex flex-wrap items-center justify-between border-t border-slate-200/80 pt-3 text-xs">
-              <div className="text-slate-500 space-y-0.5">
+            {/* Valor Cobrado Editável */}
+            <div className="border-t border-slate-200/80 pt-3 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  Preço Base ({selectedVehicle?.commercial_category || 'Categoria'}):{' '}
-                  <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                  <label htmlFor="walkin-charged-price" className="block text-xs font-bold text-slate-800 mb-1">
+                    Valor cobrado (R$) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative rounded-lg shadow-2xs">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-500">
+                        R$
+                      </span>
+                      <input
+                        id="walkin-charged-price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={chargedPrice}
+                        onChange={(e) => handleChargedPriceChange(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-40 rounded-lg border border-emerald-400 bg-white pl-9 pr-3 py-2 text-sm font-bold text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-hidden"
+                      />
+                    </div>
+                    {isPriceCustomized && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreSuggested}
+                        className="text-[11px] text-emerald-700 hover:text-emerald-900 underline font-medium"
+                      >
+                        Restaurar sugerido
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                    {isPriceCustomized && Number(chargedPrice) !== suggestedPrice && (
+                      <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
+                    )}
+                  </p>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    Base ({selectedVehicle?.commercial_category || 'Categoria'}): R$ {basePrice.toFixed(2)}
+                    {surchargeAmount > 0 && ` + Sujeira: R$ ${Number(surchargeAmount).toFixed(2)}`}
+                    {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+                  </div>
                 </div>
-                {surchargeAmount > 0 && (
-                  <div className="text-amber-700">+ Sujeira Pesada: R$ {Number(surchargeAmount).toFixed(2)}</div>
-                )}
-                {discountAmount > 0 && (
-                  <div className="text-rose-700">- Desconto: R$ {Number(discountAmount).toFixed(2)}</div>
-                )}
-              </div>
-              <div className="text-right">
-                <span className="text-slate-500 text-[11px] block">Valor Inicial Previsto:</span>
-                <span className="text-lg font-bold text-emerald-700">
-                  R$ {finalPrice.toFixed(2)}
-                </span>
+
+                <div className="text-right sm:self-end">
+                  <span className="text-slate-500 text-[11px] block">Valor Inicial Previsto:</span>
+                  <span className="text-2xl font-black text-emerald-700">
+                    R$ {(chargedPrice === '' ? 0 : Number(chargedPrice)).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

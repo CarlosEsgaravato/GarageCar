@@ -405,11 +405,21 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
                             <strong className="text-indigo-900 text-sm block">
                               {service.service_name_snap}
                             </strong>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 mt-0.5">
                               <span>Preço Base: R$ {(service.base_price_snap || 0).toFixed(2)}</span>
                               {service.surcharge_amount > 0 && (
                                 <span className="text-amber-700">
                                   (+R$ {service.surcharge_amount.toFixed(2)} condição)
+                                </span>
+                              )}
+                              {service.discount_amount > 0 && (
+                                <span className="text-rose-700">
+                                  (-R$ {service.discount_amount.toFixed(2)} desconto)
+                                </span>
+                              )}
+                              {service.final_price !== undefined && service.final_price !== service.base_price_snap && (
+                                <span className="font-semibold text-emerald-700">
+                                  • Previsto: R$ {service.final_price.toFixed(2)}
                                 </span>
                               )}
                             </div>

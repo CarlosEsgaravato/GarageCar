@@ -384,41 +384,43 @@ export const EquipmentView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-slate-300">Total em Operação</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-100">
+              Total em Operação
+            </span>
             <ShieldCheck className="h-4 w-4 text-blue-400" />
           </div>
           <div className="text-2xl font-black text-white">{stats.active} ativos</div>
-          <span className="text-xs text-slate-400 mt-1 block">
+          <span className="text-xs text-slate-300 mt-1 block">
             {stats.maintenance} em manutenção técnica
           </span>
         </div>
 
         <div className="rounded-2xl border border-purple-900/40 bg-purple-950/20 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-purple-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-900">
               Investimento do Proprietário
             </span>
-            <Briefcase className="h-4 w-4 text-purple-400" />
+            <Briefcase className="h-4 w-4 text-purple-700" />
           </div>
-          <div className="text-2xl font-black text-white font-mono">
+          <div className="text-2xl font-black text-slate-900 font-mono">
             R$ {stats.ownerInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-purple-300 mt-1 block">
+          <span className="text-[11px] text-purple-800 font-medium mt-1 block">
             Aporte pessoal • Não consome caixa operacional
           </span>
         </div>
 
         <div className="rounded-2xl border border-blue-900/40 bg-blue-950/20 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-blue-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
               Caixa da Garage Car
             </span>
-            <DollarSign className="h-4 w-4 text-blue-400" />
+            <DollarSign className="h-4 w-4 text-blue-700" />
           </div>
-          <div className="text-2xl font-black text-white font-mono">
+          <div className="text-2xl font-black text-slate-900 font-mono">
             R$ {stats.companyInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] text-blue-300 mt-1 block">
+          <span className="text-[11px] text-blue-800 font-medium mt-1 block">
             Adquirido com recursos da empresa
           </span>
         </div>
