@@ -628,8 +628,8 @@ BEGIN
         updated_at = NOW()
     WHERE id = p_service_id;
 
-    -- 8. Lançar receita se pagamento concluído
-    IF p_payment_status = 'paid' THEN
+    -- 8. Lançar receita se pagamento concluído e valor cobrado for maior que zero
+    IF p_payment_status = 'paid' AND v_final_price > 0 THEN
         IF NOT EXISTS (
             SELECT 1 FROM public.financial_transactions 
             WHERE executed_service_id = p_service_id AND NOT is_reversed

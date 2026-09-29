@@ -163,7 +163,7 @@ export const ReportsClientsTab: React.FC<ReportsClientsTabProps> = ({ data, date
         : '-';
 
       // Total pago no período
-      const paidServices = cServicesPeriod.filter((s) => s.payment_status === 'paid');
+      const paidServices = cServicesPeriod.filter((s) => s.payment_status === 'paid' && Number(s.final_price || 0) > 0);
       const periodTotalPaid = roundMoney(
         paidServices.reduce((acc, s) => acc + roundMoney(s.final_price || 0), 0)
       );

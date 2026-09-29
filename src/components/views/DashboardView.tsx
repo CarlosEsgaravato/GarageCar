@@ -191,28 +191,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return filteredServices.filter((s) => s.status === 'completed').length;
   }, [filteredServices]);
 
-  // Indicador 6: Ticket médio (faturamento pago / quantidade de serviços pagos)
-  const { averageTicket, paidServicesCount } = useMemo(() => {
-    // Serviços que foram pagos e estão dentro do período
-    const paidServices = filteredServices.filter((s) => s.payment_status === 'paid');
+  // Indicador 6: Ticket médio (faturamento pago / quantidade de serviços pagos com valor > 0)
+  const { averageTicket, paidServicesCount, courtesyServicesCount } = useMemo(() => {
+    // Serviços pagos com valor > 0 (cortesias de R$ 0 não diluem o ticket médio pago)
+    const paidServices = filteredServices.filter(
+      (s) => s.payment_status === 'paid' && Number(s.final_price || 0) > 0
+    );
+    const courtesyServices = filteredServices.filter(
+      (s) => s.status === 'completed' && Number(s.final_price || 0) === 0
+    );
     const count = paidServices.length;
 
     if (count === 0 || periodRevenue <= 0) {
-      return { averageTicket: 0, paidServicesCount: count };
+      return { averageTicket: 0, paidServicesCount: count, courtesyServicesCount: courtesyServices.length };
     }
 
     // Faturamento dos serviços pagos no período
     return {
       averageTicket: roundMoney(periodRevenue / count),
       paidServicesCount: count,
+      courtesyServicesCount: courtesyServices.length,
     };
   }, [filteredServices, periodRevenue]);
 
-  // Indicador 7: Receita por hora (faturamento pago / horas reais trabalhadas nos serviços que possuem início e fim registrados)
+  // Indicador 7: Receita por hora (faturamento pago / horas reais trabalhadas nos serviços pagos que possuem início e fim registrados)
   const revenuePerHour = useMemo(() => {
-    // Serviços concluídos e pagos que possuem tanto started_at quanto finished_at válidos
+    // Serviços concluídos e pagos com valor > 0 que possuem tanto started_at quanto finished_at válidos
     const validServices = filteredServices.filter(
-      (s) => s.payment_status === 'paid' && s.started_at && s.finished_at
+      (s) => s.payment_status === 'paid' && Number(s.final_price || 0) > 0 && s.started_at && s.finished_at
     );
 
     let totalDurationMinutes = 0;
@@ -569,7 +575,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>Serviços com pagamento registrado:</span>
-            <span className="font-semibold text-slate-700">{paidServicesCount}</span>
+            <span className="font-semibold text-slate-700">
+              {paidServicesCount}
+              {courtesyServicesCount > 0 && (
+                <span className="text-blue-600 font-normal ml-1">
+                  ({courtesyServicesCount} {courtesyServicesCount === 1 ? 'cortesia' : 'cortesias'})
+                </span>
+              )}
+            </span>
           </div>
         </div>
 

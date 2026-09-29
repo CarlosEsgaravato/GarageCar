@@ -2052,7 +2052,7 @@ export const dataService = {
       todayAppointmentsCount: todayAppointments.length,
       inProgressServicesCount: executed.filter((e) => e.status === 'in_progress').length,
       completedServicesCount: executed.filter((e) => e.status === 'completed').length,
-      pendingPaymentsCount: executed.filter((e) => e.payment_status === 'pending').length,
+      pendingPaymentsCount: executed.filter((e) => e.payment_status === 'pending' && Number(e.final_price || 0) > 0).length,
     };
   },
 

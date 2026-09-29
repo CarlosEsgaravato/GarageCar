@@ -41,8 +41,9 @@ export const ReportsServicesTab: React.FC<ReportsServicesTabProps> = ({ data, da
   // Cálculos consolidados de serviços
   const stats = useMemo(() => {
     const completed = periodServices.filter((s) => (s.status || 'completed') === 'completed');
-    const paid = completed.filter((s) => s.payment_status === 'paid');
-    const pending = completed.filter((s) => s.payment_status === 'pending');
+    const paid = completed.filter((s) => s.payment_status === 'paid' && Number(s.final_price || 0) > 0);
+    const pending = completed.filter((s) => s.payment_status === 'pending' && Number(s.final_price || 0) > 0);
+    const courtesy = completed.filter((s) => Number(s.final_price || 0) === 0);
 
     const totalRevenue = roundMoney(
       paid.reduce((acc, s) => acc + roundMoney(s.final_price || 0), 0)
@@ -203,7 +204,7 @@ export const ReportsServicesTab: React.FC<ReportsServicesTabProps> = ({ data, da
         s.vehicle_plate_snap || '-',
         s.service_name_snap || '-',
         (s.final_price || 0).toFixed(2),
-        s.payment_status === 'paid' ? 'Pago' : 'Pendente',
+        Number(s.final_price || 0) === 0 ? 'Cortesia' : s.payment_status === 'paid' ? 'Pago' : 'Pendente',
         s.payment_method || '-',
         s.actual_duration_minutes || '-',
         (s.revenue_per_hour || 0).toFixed(2),
@@ -509,12 +510,14 @@ export const ReportsServicesTab: React.FC<ReportsServicesTabProps> = ({ data, da
                       <td className="py-2.5 px-3 text-center font-sans">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            s.payment_status === 'paid'
+                            Number(s.final_price || 0) === 0
+                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                              : s.payment_status === 'paid'
                               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                               : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                           }`}
                         >
-                          {s.payment_status === 'paid' ? 'Pago' : 'Pendente'}
+                          {Number(s.final_price || 0) === 0 ? 'Cortesia' : s.payment_status === 'paid' ? 'Pago' : 'Pendente'}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-right text-slate-300">

@@ -61,9 +61,14 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   // Preço base/sugerido do catálogo preservado em base_price_snap
   const basePrice = service.base_price_snap || 0;
 
-  // Valor cobrado editável pelo operador (sugestão inicial = final_price existente ou base + acréscimo - desconto)
+  // Opção de atendimento não cobrado / cortesia
+  const [isCourtesy, setIsCourtesy] = useState<boolean>(() => {
+    return service.final_price !== undefined && service.final_price !== null && service.final_price === 0;
+  });
+
+  // Valor cobrado editável pelo operador (sugestão inicial = final_price existente se já informado, ou base + acréscimo - desconto)
   const [chargedPrice, setChargedPrice] = useState<number | ''>(() => {
-    if (service.final_price !== undefined && service.final_price !== null && service.final_price > 0) {
+    if (service.final_price !== undefined && service.final_price !== null) {
       return service.final_price;
     }
     return Math.max(0, (service.base_price_snap || 0) + (service.surcharge_amount || 0) - (service.discount_amount || 0));
@@ -74,7 +79,6 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
     return (
       service.final_price !== undefined &&
       service.final_price !== null &&
-      service.final_price > 0 &&
       Math.abs(service.final_price - calc) > 0.001
     );
   });
@@ -107,18 +111,16 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
       setNotes(service.notes || '');
 
       const base = service.base_price_snap || 0;
-      const initialPrice =
-        service.final_price !== undefined && service.final_price !== null && service.final_price > 0
-          ? service.final_price
-          : Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+      const hasFinalPrice = service.final_price !== undefined && service.final_price !== null;
+      const initialPrice = hasFinalPrice
+        ? service.final_price
+        : Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
       setChargedPrice(initialPrice);
+      setIsCourtesy(hasFinalPrice && service.final_price === 0);
 
       const calc = Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
       setIsPriceCustomized(
-        service.final_price !== undefined &&
-        service.final_price !== null &&
-        service.final_price > 0 &&
-        Math.abs(service.final_price - calc) > 0.001
+        hasFinalPrice && Math.abs((service.final_price as number) - calc) > 0.001
       );
 
       loadDependenciesAndRecipe();
@@ -196,8 +198,22 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
     basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0)
   );
 
-  // Valor final efetivo a ser cobrado
-  const effectiveFinalPrice = chargedPrice === '' ? 0 : Math.max(0, Number(chargedPrice));
+  // Valor final efetivo a ser cobrado (se cortesia, é estritamente 0)
+  const effectiveFinalPrice = isCourtesy ? 0 : (chargedPrice === '' ? 0 : Math.max(0, Number(chargedPrice)));
+
+  // Alterna opção de cortesia / não cobrado
+  const handleToggleCourtesy = (checked: boolean) => {
+    setIsCourtesy(checked);
+    if (checked) {
+      setChargedPrice(0);
+      setIsPriceCustomized(true);
+      setPaymentStatus('paid');
+    } else {
+      const restored = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+      setChargedPrice(restored);
+      setIsPriceCustomized(false);
+    }
+  };
 
   // Recalcula acréscimo quando o nível de condição muda
   const handleConditionChange = (newLevel: ConditionLevel) => {
@@ -205,7 +221,7 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
     if (systemSettings) {
       const suggestedSurcharge = systemSettings.condition_surcharges[newLevel] || 0;
       setSurchargeAmount(suggestedSurcharge);
-      if (!isPriceCustomized) {
+      if (!isPriceCustomized && !isCourtesy) {
         setChargedPrice(Math.max(0, basePrice + suggestedSurcharge - Number(discountAmount || 0)));
       }
     }
@@ -213,31 +229,35 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
 
   const handleSurchargeChange = (newSurcharge: number) => {
     setSurchargeAmount(newSurcharge);
-    if (!isPriceCustomized) {
+    if (!isPriceCustomized && !isCourtesy) {
       setChargedPrice(Math.max(0, basePrice + newSurcharge - Number(discountAmount || 0)));
     }
   };
 
   const handleDiscountChange = (newDiscount: number) => {
     setDiscountAmount(newDiscount);
-    if (!isPriceCustomized) {
+    if (!isPriceCustomized && !isCourtesy) {
       setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - newDiscount));
     }
   };
 
   const handleChargedPriceChange = (val: number | '') => {
+    if (isCourtesy) return;
     setIsPriceCustomized(true);
     setChargedPrice(val);
   };
 
   const handleRestoreSuggested = () => {
+    setIsCourtesy(false);
     setIsPriceCustomized(false);
     setChargedPrice(suggestedPrice);
   };
 
-  // Produtividade: R$/hora
+  // Produtividade: R$/hora (se cortesia ou valor cobrado for 0, é 0)
   const revenuePerHour =
-    durationHours > 0 ? Math.round((effectiveFinalPrice / durationHours) * 100) / 100 : effectiveFinalPrice;
+    effectiveFinalPrice > 0 && durationHours > 0
+      ? Math.round((effectiveFinalPrice / durationHours) * 100) / 100
+      : 0;
 
   // Atualiza quantidade de um produto consumido e recalcula FIFO
   const handleQuantityChange = async (index: number, newQty: number) => {
@@ -357,11 +377,13 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
       return;
     }
 
-    const finalPriceNum = chargedPrice === '' ? 0 : Number(chargedPrice);
+    const finalPriceNum = isCourtesy ? 0 : (chargedPrice === '' ? 0 : Number(chargedPrice));
     if (isNaN(finalPriceNum) || finalPriceNum < 0) {
       alert('Por favor, informe um valor cobrado válido (número maior ou igual a zero).');
       return;
     }
+
+    const isZeroCharged = isCourtesy || finalPriceNum === 0;
 
     // Requisito 6: Bloquear consumo se não existir nenhum lote cadastrado para o produto
     const productMissingBatch = consumedProducts.find((p) => {
@@ -394,9 +416,9 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
         discountAmount: Number(discountAmount || 0),
         finalPrice: finalPriceNum,
         usedProducts: consumedProducts,
-        paymentStatus: paymentStatus,
-        paymentMethod: paymentStatus === 'paid' ? paymentMethod : undefined,
-        paidAt: paymentStatus === 'paid' ? new Date(paidAtStr).toISOString() : undefined,
+        paymentStatus: isZeroCharged ? 'paid' : paymentStatus,
+        paymentMethod: (!isZeroCharged && paymentStatus === 'paid') ? paymentMethod : undefined,
+        paidAt: (!isZeroCharged && paymentStatus === 'paid') ? (paidAtStr ? new Date(paidAtStr).toISOString() : new Date().toISOString()) : undefined,
         isRework: isRework,
         reworkNotes: reworkNotes.trim(),
         notes: notes.trim(),
@@ -523,10 +545,44 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
           </div>
 
           {/* Condição do Veículo, Acréscimo e Preço Final */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
               Condição & Ajuste de Preço
             </span>
+
+            {/* Opção Explícita de Não Cobrado / Cortesia */}
+            <div
+              className={`rounded-xl border p-3.5 transition-all ${
+                isCourtesy
+                  ? 'border-blue-400 bg-blue-50/90 shadow-2xs'
+                  : 'border-slate-200 bg-white hover:bg-slate-50/80'
+              }`}
+            >
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  id="finalize-courtesy-checkbox"
+                  checked={isCourtesy}
+                  onChange={(e) => handleToggleCourtesy(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      Não cobrar este atendimento / Cortesia
+                    </span>
+                    {isCourtesy && (
+                      <span className="rounded-md bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        R$ 0,00
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    Define o valor cobrado como R$ 0,00. Não exige forma de pagamento, não gera receita ou pendência financeira e finaliza normalmente com baixa FIFO dos insumos.
+                  </p>
+                </div>
+              </label>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
@@ -591,12 +647,17 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                       step="0.01"
                       min="0"
                       required
-                      value={chargedPrice}
+                      disabled={isCourtesy}
+                      value={isCourtesy ? 0 : chargedPrice}
                       onChange={(e) => handleChargedPriceChange(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-40 rounded-lg border border-blue-400 bg-white pl-9 pr-3 py-2 text-sm font-bold text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                      className={`w-40 rounded-lg border pl-9 pr-3 py-2 text-sm font-bold focus:outline-hidden ${
+                        isCourtesy
+                          ? 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
+                          : 'border-blue-400 bg-white text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20'
+                      }`}
                     />
                   </div>
-                  {isPriceCustomized && (
+                  {isPriceCustomized && !isCourtesy && (
                     <button
                       type="button"
                       onClick={handleRestoreSuggested}
@@ -608,9 +669,11 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
                   Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
-                  {isPriceCustomized && Number(chargedPrice) !== suggestedPrice && (
+                  {isCourtesy ? (
+                    <span className="text-blue-700 font-semibold ml-1.5">• Atendimento não cobrado (Cortesia)</span>
+                  ) : isPriceCustomized && Number(chargedPrice) !== suggestedPrice ? (
                     <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
-                  )}
+                  ) : null}
                 </p>
                 <div className="text-[11px] text-slate-400 mt-0.5">
                   Base: R$ {basePrice.toFixed(2)}
@@ -621,9 +684,12 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
 
               <div className="text-right sm:self-end">
                 <span className="text-[11px] text-slate-500 block">Preço Final do Serviço:</span>
-                <span className="text-2xl font-black text-slate-900">
+                <span className={`text-2xl font-black ${isCourtesy ? 'text-blue-600' : 'text-slate-900'}`}>
                   R$ {effectiveFinalPrice.toFixed(2)}
                 </span>
+                {isCourtesy && (
+                  <span className="text-[10px] text-blue-600 font-semibold block">Cortesia</span>
+                )}
               </div>
             </div>
           </div>
@@ -776,9 +842,19 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
             </div>
 
             {/* Margem Bruta Simples (Requisito 31) */}
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div
+              className={`rounded-xl border p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs ${
+                simpleGrossMargin < 0
+                  ? 'bg-rose-50/70 border-rose-200'
+                  : 'bg-emerald-50 border-emerald-200'
+              }`}
+            >
               <div className="space-y-0.5">
-                <span className="text-[11px] font-semibold text-emerald-800 block">
+                <span
+                  className={`text-[11px] font-semibold block ${
+                    simpleGrossMargin < 0 ? 'text-rose-800' : 'text-emerald-800'
+                  }`}
+                >
                   Margem Bruta Simples do Atendimento
                 </span>
                 <span className="text-slate-600">
@@ -786,11 +862,21 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-base font-bold text-emerald-900 block">
+                <span
+                  className={`text-base font-bold block ${
+                    simpleGrossMargin < 0 ? 'text-rose-700' : 'text-emerald-900'
+                  }`}
+                >
                   R$ {simpleGrossMargin.toFixed(2)}
                 </span>
-                <span className="text-[11px] font-medium text-emerald-700">
-                  Margem: {simpleGrossMarginPercent.toFixed(1)}%
+                <span
+                  className={`text-[11px] font-medium ${
+                    simpleGrossMargin < 0 ? 'text-rose-600' : 'text-emerald-700'
+                  }`}
+                >
+                  {effectiveFinalPrice > 0
+                    ? `Margem: ${simpleGrossMarginPercent.toFixed(1)}%`
+                    : 'Cortesia (Sem receita)'}
                 </span>
               </div>
             </div>
@@ -802,63 +888,82 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
               Controle de Pagamento
             </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Situação do Pagamento *
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentStatus('paid')}
-                    className={`rounded-xl border p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                      paymentStatus === 'paid'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-xs'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Pago no ato
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentStatus('pending')}
-                    className={`rounded-xl border p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                      paymentStatus === 'pending'
-                        ? 'border-amber-600 bg-amber-50 text-amber-800 shadow-xs'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Clock className="h-4 w-4 text-amber-600" />
-                    Pendente (Faturar)
-                  </button>
+            {isCourtesy || effectiveFinalPrice === 0 ? (
+              <div className="rounded-xl bg-blue-50/80 border border-blue-200 p-4 flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <strong className="text-blue-950 font-bold text-sm">
+                      Atendimento Não Cobrado / Cortesia (R$ 0,00)
+                    </strong>
+                    <span className="rounded-md bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                      Concluído
+                    </span>
+                  </div>
+                  <p className="text-blue-800 text-[11px] leading-relaxed">
+                    Nenhuma cobrança é realizada. Não é necessário selecionar forma nem data de pagamento. O atendimento será finalizado como concluído sem deixar valores pendentes e sem gerar movimentação de receita no caixa da empresa.
+                  </p>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  {paymentStatus === 'paid'
-                    ? 'Recebimento confirmado no momento da entrega.'
-                    : 'Serviço concluído, aguardando pagamento posterior.'}
-                </span>
               </div>
-
-              {paymentStatus === 'paid' && (
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Forma de Pagamento Recebida *
+                    Situação do Pagamento *
                   </label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
-                  >
-                    <option value="pix">PIX</option>
-                    <option value="cash">Dinheiro em Espécie</option>
-                    <option value="debit">Cartão de Débito</option>
-                    <option value="credit">Cartão de Crédito</option>
-                    <option value="other">Outro</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentStatus('paid')}
+                      className={`rounded-xl border p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        paymentStatus === 'paid'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-xs'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      Pago no ato
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentStatus('pending')}
+                      className={`rounded-xl border p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        paymentStatus === 'pending'
+                          ? 'border-amber-600 bg-amber-50 text-amber-800 shadow-xs'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Clock className="h-4 w-4 text-amber-600" />
+                      Pendente (Faturar)
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    {paymentStatus === 'paid'
+                      ? 'Recebimento confirmado no momento da entrega.'
+                      : 'Serviço concluído, aguardando pagamento posterior.'}
+                  </span>
                 </div>
-              )}
-            </div>
+
+                {paymentStatus === 'paid' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Forma de Pagamento Recebida *
+                    </label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden"
+                    >
+                      <option value="pix">PIX</option>
+                      <option value="cash">Dinheiro em Espécie</option>
+                      <option value="debit">Cartão de Débito</option>
+                      <option value="credit">Cartão de Crédito</option>
+                      <option value="other">Outro</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Retrabalho / Garantia (Requisito 28) */}

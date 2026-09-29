@@ -90,7 +90,7 @@ export const ReportsOverviewTab: React.FC<ReportsOverviewTabProps> = ({ data, da
   }, [periodServices]);
 
   const paidServices = useMemo(() => {
-    return periodServices.filter((s) => s.payment_status === 'paid');
+    return periodServices.filter((s) => s.payment_status === 'paid' && Number(s.final_price || 0) > 0);
   }, [periodServices]);
 
   // Faturamento focado nos serviços concluídos

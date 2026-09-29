@@ -2043,7 +2043,9 @@ export const operationService = {
 
     // Cálculo de produtividade: Receita por hora (Requisito 30)
     const revenuePerHour =
-      durationHours > 0 ? Math.round((payload.finalPrice / durationHours) * 100) / 100 : payload.finalPrice;
+      payload.finalPrice > 0 && durationHours > 0
+        ? Math.round((payload.finalPrice / durationHours) * 100) / 100
+        : 0;
 
     // -------------------------------------------------------------
     // FLUXO REMOTO TRANSACIONAL NO SUPABASE (Via RPC complete_service_transactional)
@@ -2307,8 +2309,8 @@ export const operationService = {
     }
     setLocal(OPERATION_STORAGE_KEYS.EXECUTED_SERVICES, list);
 
-    // Se o serviço foi concluído como pago no fallback local, registra a receita financeira localmente
-    if (payload.paymentStatus === 'paid') {
+    // Se o serviço foi concluído como pago no fallback local, registra a receita financeira localmente se houver valor > 0
+    if (payload.paymentStatus === 'paid' && updatedService.final_price > 0) {
       const localTrxs = getLocal<FinancialTransaction[]>(
         OPERATION_STORAGE_KEYS.FINANCIAL_TRANSACTIONS,
         []
@@ -2385,7 +2387,7 @@ export const operationService = {
         throw new Error(`Erro ao registrar pagamento no Supabase: ${updErr.message}`);
       }
 
-      // Inserir financial_transactions se não existir
+      // Inserir financial_transactions se não existir e se valor for maior que zero
       const { data: existingTrx } = await sb
         .from('financial_transactions')
         .select('id')
@@ -2393,7 +2395,7 @@ export const operationService = {
         .eq('is_reversed', false)
         .maybeSingle();
 
-      if (!existingTrx) {
+      if (!existingTrx && roundMoney(list[idx].final_price) > 0) {
         const s = list[idx];
         await sb.from('financial_transactions').insert({
           type: 'revenue',
@@ -2410,7 +2412,7 @@ export const operationService = {
         }
       }
     } else {
-      // Inserir financial_transactions no fallback local (demo)
+      // Inserir financial_transactions no fallback local (demo) se valor for maior que zero
       const localTrxs = getLocal<FinancialTransaction[]>(
         OPERATION_STORAGE_KEYS.FINANCIAL_TRANSACTIONS,
         []
@@ -2418,7 +2420,7 @@ export const operationService = {
       const exists = localTrxs.some(
         (t) => t.executed_service_id === serviceId && !t.is_reversed
       );
-      if (!exists) {
+      if (!exists && roundMoney(list[idx].final_price) > 0) {
         const s = list[idx];
         localTrxs.unshift({
           id: crypto.randomUUID(),

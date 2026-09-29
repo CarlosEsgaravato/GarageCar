@@ -295,10 +295,15 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 Status Financeiro do Serviço
               </span>
 
-              {service.payment_status === 'paid' ? (
+              {Number(service.final_price || 0) === 0 && service.status === 'completed' ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
+                  Atendimento Não Cobrado (Cortesia)
+                </span>
+              ) : service.payment_status === 'paid' ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  Pago via {service.payment_method?.toUpperCase()}
+                  Pago via {service.payment_method?.toUpperCase() || 'PAGO'}
                 </span>
               ) : service.payment_status === 'pending' ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
@@ -312,7 +317,11 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
               )}
             </div>
 
-            {service.payment_status === 'paid' && (
+            {Number(service.final_price || 0) === 0 && service.status === 'completed' ? (
+              <div className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-xl p-3 leading-relaxed">
+                Este atendimento foi registrado como <strong>Cortesia / Não Cobrado</strong> (R$ 0,00). Nenhuma receita foi movimentada e nenhuma pendência financeira foi gerada.
+              </div>
+            ) : service.payment_status === 'paid' && (
               <div className="text-xs text-slate-600">
                 Pagamento registrado em:{' '}
                 <strong>
@@ -323,7 +332,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
             )}
 
             {/* Ação rápida para dar baixa em pagamento pendente (Requisito 26 / TESTE 3) */}
-            {service.payment_status === 'pending' && !isRegisteringPayment && (
+            {service.payment_status === 'pending' && Number(service.final_price || 0) > 0 && !isRegisteringPayment && (
               <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 p-3">
                 <div className="text-amber-900">
                   <strong>Aguardando recebimento:</strong> R$ {(service.final_price || 0).toFixed(2)}

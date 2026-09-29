@@ -123,7 +123,7 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
   );
   const revenueToday = completedToday.reduce((sum, s) => sum + (s.final_price || 0), 0);
   const pendingPayments = services.filter(
-    (s) => s.status === 'completed' && s.payment_status === 'pending'
+    (s) => s.status === 'completed' && s.payment_status === 'pending' && Number(s.final_price || 0) > 0
   );
   const pendingPaymentsAmount = pendingPayments.reduce(
     (sum, s) => sum + (s.final_price || 0),
@@ -622,27 +622,46 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
                             <div className="font-bold text-slate-900 text-sm">
                               R$ {(service.final_price || 0).toFixed(2)}
                             </div>
-                            {service.surcharge_amount > 0 && (
+                            {Number(service.final_price || 0) === 0 && service.status === 'completed' ? (
+                              <div className="text-[10px] text-blue-600 font-semibold">
+                                Cortesia
+                              </div>
+                            ) : service.surcharge_amount > 0 ? (
                               <div className="text-[10px] text-amber-700">
                                 +R$ {service.surcharge_amount.toFixed(2)} sujeira
                               </div>
-                            )}
+                            ) : null}
                           </td>
 
                           {/* Margem Bruta Simples */}
                           <td className="py-3 px-4 text-right">
-                            <div className="font-semibold text-emerald-700">
+                            <div
+                              className={`font-semibold ${
+                                (service.simple_gross_margin || 0) < 0
+                                  ? 'text-rose-600'
+                                  : 'text-emerald-700'
+                              }`}
+                            >
                               R$ {(service.simple_gross_margin || 0).toFixed(2)}
                             </div>
                             <div className="text-[10px] text-slate-400">
-                              Insumos: R$ {(service.total_products_cost || 0).toFixed(2)} (
-                              {(service.simple_gross_margin_percent || 0).toFixed(0)}%)
+                              Insumos: R$ {(service.total_products_cost || 0).toFixed(2)}
+                              {Number(service.final_price || 0) > 0 ? (
+                                ` (${(service.simple_gross_margin_percent || 0).toFixed(0)}%)`
+                              ) : (
+                                ' (0%)'
+                              )}
                             </div>
                           </td>
 
                           {/* Status Pagamento (Requisito 24 / TESTE 3) */}
                           <td className="py-3 px-4 text-center">
-                            {service.payment_status === 'paid' ? (
+                            {Number(service.final_price || 0) === 0 && service.status === 'completed' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                                <CheckCircle2 className="h-3 w-3" />
+                                CORTESIA
+                              </span>
+                            ) : service.payment_status === 'paid' ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                                 <CheckCircle2 className="h-3 w-3" />
                                 {service.payment_method?.toUpperCase() || 'PAGO'}
