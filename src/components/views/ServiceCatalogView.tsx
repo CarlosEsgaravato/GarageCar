@@ -195,7 +195,9 @@ export const ServiceCatalogView: React.FC = () => {
       estimated_duration_minutes: currentPrice
         ? currentPrice.estimated_duration_minutes
         : service.estimated_duration_minutes,
-      valid_from: new Date().toISOString().split('T')[0],
+      valid_from:
+        currentPrice?.valid_from ||
+        new Date().toISOString().split('T')[0],
     });
     setIsPriceModalOpen(true);
   };
@@ -210,6 +212,7 @@ export const ServiceCatalogView: React.FC = () => {
 
     try {
       await dataService.saveServicePrice({
+        id: editingPriceData.currentPrice?.id,
         service_id: editingPriceData.service.id,
         commercial_category: editingPriceData.category,
         price: Number(priceForm.price),
@@ -551,8 +554,7 @@ export const ServiceCatalogView: React.FC = () => {
                 Matriz de Preços Vigente — Clique em qualquer valor para editar
               </p>
               <p className="text-slate-400">
-                Cada serviço possui valores e tempos de execução ajustados por porte veicular. Ao alterar
-                um valor, um novo registro histórico é gerado preservando a integridade de agendamentos anteriores.
+                Alterações na matriz serão aplicadas aos próximos atendimentos. Serviços já realizados preservam os valores históricos registrados.
               </p>
             </div>
           </div>
