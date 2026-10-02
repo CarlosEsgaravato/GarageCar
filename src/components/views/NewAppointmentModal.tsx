@@ -49,6 +49,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
   const [clientId, setClientId] = useState<string>('');
   const [vehicleId, setVehicleId] = useState<string>('');
   const [serviceId, setServiceId] = useState<string>('');
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<string>(
     initialDate || new Date().toISOString().split('T')[0]
   );
@@ -70,6 +71,11 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadInitialData();
+      setSelectedAddonIds([]);
+      setIsPriceCustomized(false);
+      setChargedPrice('');
+      setSurchargeAmount(0);
+      setDiscountAmount(0);
     }
   }, [isOpen]);
 
@@ -96,6 +102,10 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
     }
   };
 
+  // Separação entre serviço principal e serviços adicionais
+  const mainServices = services.filter((s) => s.service_type !== 'adicional');
+  const addonServices = services.filter((s) => s.service_type === 'adicional');
+
   // Filtra veículos do cliente selecionado
   const clientVehicles = vehicles.filter((v) => v.client_id === clientId);
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
@@ -110,24 +120,38 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
     }
   }, [clientId, clientVehicles]);
 
-  // Recalcula horário de término estimado ao alterar duração ou início
-  useEffect(() => {
-    if (selectedService?.estimated_duration_minutes) {
-      setDurationMinutes(selectedService.estimated_duration_minutes);
+  // Helper para obter preço e duração de serviço adicional por categoria
+  const getAddonInfo = (addonItem: ServiceCatalogItem) => {
+    if (!selectedVehicle) {
+      return { price: 0, duration: addonItem.estimated_duration_minutes, isAvailable: false };
     }
-  }, [selectedService]);
+    const priceRecord = servicePrices.find(
+      (p) =>
+        p.service_id === addonItem.id &&
+        p.commercial_category === selectedVehicle.commercial_category
+    );
+    if (!priceRecord || !priceRecord.is_active) {
+      return { price: 0, duration: addonItem.estimated_duration_minutes, isAvailable: false };
+    }
+    return {
+      price: priceRecord.price,
+      duration: priceRecord.estimated_duration_minutes ?? addonItem.estimated_duration_minutes,
+      isAvailable: true,
+    };
+  };
 
-  useEffect(() => {
-    if (scheduledStart && durationMinutes) {
-      const [h, m] = scheduledStart.split(':').map(Number);
-      const startMin = (h || 0) * 60 + (m || 0);
-      const endMin = startMin + durationMinutes;
-      const endH = Math.floor(endMin / 60) % 24;
-      const endM = endMin % 60;
-      const formatted = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-      setScheduledEnd(formatted);
-    }
-  }, [scheduledStart, durationMinutes]);
+  // Snapshots dos adicionais selecionados
+  const selectedAddonsData = addonServices
+    .filter((addon) => selectedAddonIds.includes(addon.id))
+    .map((addon) => {
+      const info = getAddonInfo(addon);
+      return {
+        service_catalog_id: addon.id,
+        service_name_snap: addon.name,
+        price_snap: info.price,
+        estimated_duration_minutes_snap: info.duration,
+      };
+    });
 
   // Busca preço base compatível no catálogo de preços por categoria do veículo
   const getBasePrice = (): number => {
@@ -141,24 +165,54 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
   };
 
   const basePrice = getBasePrice();
-  const suggestedPrice = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+  const addonsTotal = selectedAddonsData.reduce((sum, item) => sum + item.price_snap, 0);
+  const servicesSubtotal = basePrice + addonsTotal;
+  const suggestedPrice = Math.max(0, servicesSubtotal + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+
+  // Duração prevista: duração principal da matriz (ou catálogo) + soma das durações dos adicionais
+  const mainPriceRecord = selectedService && selectedVehicle
+    ? servicePrices.find(
+        (p) =>
+          p.service_id === selectedService.id &&
+          p.commercial_category === selectedVehicle.commercial_category
+      )
+    : null;
+  const mainDuration =
+    mainPriceRecord?.estimated_duration_minutes ?? selectedService?.estimated_duration_minutes ?? 60;
+  const addonsDuration = selectedAddonsData.reduce(
+    (sum, item) => sum + item.estimated_duration_minutes_snap,
+    0
+  );
+  const totalDuration = mainDuration + addonsDuration;
+
+  // Atualiza duração estimada com base no serviço principal + adicionais
+  useEffect(() => {
+    setDurationMinutes(totalDuration);
+  }, [totalDuration]);
+
+  // Recalcula horário de término estimado ao alterar duração ou início
+  useEffect(() => {
+    if (scheduledStart && durationMinutes) {
+      const [h, m] = scheduledStart.split(':').map(Number);
+      const startMin = (h || 0) * 60 + (m || 0);
+      const endMin = startMin + durationMinutes;
+      const endH = Math.floor(endMin / 60) % 24;
+      const endM = endMin % 60;
+      const formatted = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      setScheduledEnd(formatted);
+    }
+  }, [scheduledStart, durationMinutes]);
 
   // Sugestão automática do catálogo para novos serviços/veículos quando não editado manualmente
   useEffect(() => {
     if (!isPriceCustomized) {
       if (selectedService && selectedVehicle) {
-        const priceRecord = servicePrices.find(
-          (p) =>
-            p.service_id === selectedService.id &&
-            p.commercial_category === selectedVehicle.commercial_category
-        );
-        const base = priceRecord ? priceRecord.price : 0;
-        setChargedPrice(Math.max(0, base + Number(surchargeAmount || 0) - Number(discountAmount || 0)));
+        setChargedPrice(suggestedPrice);
       } else {
         setChargedPrice('');
       }
     }
-  }, [selectedService?.id, selectedVehicle?.commercial_category, isPriceCustomized, surchargeAmount, discountAmount]);
+  }, [selectedService?.id, selectedVehicle?.commercial_category, selectedAddonIds, isPriceCustomized, surchargeAmount, discountAmount, suggestedPrice]);
 
   // Recalcula acréscimo ao mudar nível de condição
   const handleConditionChange = (newLevel: ConditionLevel) => {
@@ -167,7 +221,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
       const suggested = systemSettings.condition_surcharges[newLevel] || 0;
       setSurchargeAmount(suggested);
       if (!isPriceCustomized) {
-        setChargedPrice(Math.max(0, basePrice + suggested - Number(discountAmount || 0)));
+        setChargedPrice(Math.max(0, servicesSubtotal + suggested - Number(discountAmount || 0)));
       }
     }
   };
@@ -175,20 +229,26 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
   const handleSurchargeChange = (val: number) => {
     setSurchargeAmount(val);
     if (!isPriceCustomized) {
-      setChargedPrice(Math.max(0, basePrice + val - Number(discountAmount || 0)));
+      setChargedPrice(Math.max(0, servicesSubtotal + val - Number(discountAmount || 0)));
     }
   };
 
   const handleDiscountChange = (val: number) => {
     setDiscountAmount(val);
     if (!isPriceCustomized) {
-      setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - val));
+      setChargedPrice(Math.max(0, servicesSubtotal + Number(surchargeAmount || 0) - val));
     }
   };
 
   const handleServiceChange = (id: string) => {
     setServiceId(id);
     setIsPriceCustomized(false);
+  };
+
+  const handleToggleAddon = (addonId: string) => {
+    setSelectedAddonIds((prev) =>
+      prev.includes(addonId) ? prev.filter((id) => id !== addonId) : [...prev, addonId]
+    );
   };
 
   const handleChargedPriceChange = (val: number | '') => {
@@ -265,6 +325,7 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
         discount_amount: Number(discountAmount || 0),
         status: 'scheduled',
         notes: notes.trim(),
+        addons: selectedAddonsData,
       });
 
       onSuccess(saved);
@@ -379,24 +440,88 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
             </div>
           </div>
 
-          {/* Seleção de Serviço */}
+          {/* Seleção de Serviço Principal */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-              Serviço Previsto
+              Serviço Principal Previsto
             </label>
             <select
               value={serviceId}
               onChange={(e) => handleServiceChange(e.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-xs focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
             >
-              <option value="">Selecione o serviço do catálogo...</option>
-              {services.map((srv) => (
+              <option value="">Selecione o serviço principal do catálogo...</option>
+              {mainServices.map((srv) => (
                 <option key={srv.id} value={srv.id}>
-                  {srv.name} (Previsto: {srv.estimated_duration_minutes} min)
+                  {srv.name}
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Serviços adicionais (opcional) */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-blue-600" />
+                Serviços adicionais (opcional)
+              </label>
+              {selectedAddonIds.length > 0 && (
+                <span className="text-[11px] font-semibold text-blue-700">
+                  {selectedAddonIds.length} selecionado(s) (+ R$ {addonsTotal.toFixed(2)})
+                </span>
+              )}
+            </div>
+
+            {addonServices.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Nenhum serviço adicional cadastrado no catálogo.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {addonServices.map((addon) => {
+                  const info = getAddonInfo(addon);
+                  const isChecked = selectedAddonIds.includes(addon.id);
+
+                  return (
+                    <label
+                      key={addon.id}
+                      className={`flex items-start gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-all ${
+                        !info.isAvailable
+                          ? 'border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed'
+                          : isChecked
+                          ? 'border-blue-500 bg-blue-50/80 text-blue-950 font-medium shadow-2xs'
+                          : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!info.isAvailable}
+                        checked={isChecked}
+                        onChange={() => handleToggleAddon(addon.id)}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate font-semibold text-slate-800">{addon.name}</span>
+                        {info.isAvailable ? (
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                            <span className="font-bold text-blue-700">R$ {info.price.toFixed(2)}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-0.5">
+                              <Clock className="h-3 w-3" />
+                              {info.duration} min
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-amber-600 font-medium block mt-0.5">
+                            Preço não definido para esta categoria
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Data e Horários */}
@@ -529,15 +654,28 @@ export const NewAppointmentModal: React.FC<NewAppointmentModalProps> = ({
                     )}
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                    Valor sugerido: <strong className="text-slate-700">R$ {suggestedPrice.toFixed(2)}</strong>
                     {isPriceCustomized && Number(chargedPrice) !== suggestedPrice && (
                       <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
                     )}
                   </p>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    Base: R$ {basePrice.toFixed(2)}
-                    {surchargeAmount > 0 && ` + Condição: R$ ${Number(surchargeAmount).toFixed(2)}`}
-                    {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+                  <div className="text-[11px] text-slate-400 mt-0.5 space-y-0.5">
+                    <div>
+                      Principal ({selectedVehicle?.commercial_category || 'Categoria'}): R$ {basePrice.toFixed(2)}
+                    </div>
+                    {addonsTotal > 0 && (
+                      <div className="text-blue-700 font-medium">
+                        + Adicionais: R$ {addonsTotal.toFixed(2)} (Subtotal serviços: R$ {servicesSubtotal.toFixed(2)})
+                      </div>
+                    )}
+                    {surchargeAmount > 0 && <div>+ Condição: R$ {Number(surchargeAmount).toFixed(2)}</div>}
+                    {discountAmount > 0 && <div>- Desconto: R$ {Number(discountAmount).toFixed(2)}</div>}
+                    {totalDuration > 0 && (
+                      <div className="text-slate-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="h-3 w-3" />
+                        Duração total estimada: <strong>{totalDuration} min</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
 

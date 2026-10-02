@@ -18,7 +18,9 @@
 import {
   Appointment,
   AppointmentStatus,
+  AppointmentAddon,
   ExecutedService,
+  ExecutedServiceAddon,
   ExecutedServiceProductItem,
   ProductBatch,
   CreateBatchPurchasePayload,
@@ -51,7 +53,9 @@ import { DEFAULT_PRODUCTS } from './dataService';
 // Chaves de armazenamento local da Fase 3
 export const OPERATION_STORAGE_KEYS = {
   APPOINTMENTS: 'garage_car_appointments_v3',
+  APPOINTMENT_ADDONS: 'garage_car_appointment_addons_v3',
   EXECUTED_SERVICES: 'garage_car_executed_services_v3',
+  EXECUTED_SERVICE_ADDONS: 'garage_car_executed_service_addons_v3',
   EXECUTED_SERVICE_PRODUCTS: 'garage_car_executed_service_products_v3',
   PRODUCT_BATCHES: 'garage_car_product_batches_v3',
   STOCK_MOVEMENTS: 'garage_car_stock_movements_v3',
@@ -1430,7 +1434,7 @@ export const operationService = {
     if (sb && !isDemoModeActive()) {
       let query = sb
         .from('appointments')
-        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*)');
+        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*), addons:appointment_addons(*)');
       if (filters?.date) {
         query = query.eq('scheduled_date', filters.date);
       }
@@ -1450,6 +1454,11 @@ export const operationService = {
     }
 
     let list = getLocal<Appointment[]>(OPERATION_STORAGE_KEYS.APPOINTMENTS, DEFAULT_APPOINTMENTS);
+    const localAddons = getLocal<AppointmentAddon[]>(OPERATION_STORAGE_KEYS.APPOINTMENT_ADDONS, []);
+    list = list.map((a) => ({
+      ...a,
+      addons: localAddons.filter((ad) => ad.appointment_id === a.id),
+    }));
 
     if (filters?.date) {
       list = list.filter((a) => a.scheduled_date === filters.date);
@@ -1476,7 +1485,7 @@ export const operationService = {
     if (sb && !isDemoModeActive()) {
       const { data, error } = await sb
         .from('appointments')
-        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*)')
+        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*), addons:appointment_addons(*)')
         .eq('id', id)
         .maybeSingle();
       if (error) {
@@ -1487,7 +1496,15 @@ export const operationService = {
     }
 
     const list = getLocal<Appointment[]>(OPERATION_STORAGE_KEYS.APPOINTMENTS, DEFAULT_APPOINTMENTS);
-    return list.find((a) => a.id === id);
+    const appt = list.find((a) => a.id === id);
+    if (appt) {
+      const localAddons = getLocal<AppointmentAddon[]>(OPERATION_STORAGE_KEYS.APPOINTMENT_ADDONS, []);
+      return {
+        ...appt,
+        addons: localAddons.filter((ad) => ad.appointment_id === appt.id),
+      };
+    }
+    return undefined;
   },
 
   /**
@@ -1540,8 +1557,9 @@ export const operationService = {
 
     const sb = getSupabaseClient();
     if (sb && !isDemoModeActive()) {
+      const appointmentId = appointmentData.id || crypto.randomUUID();
       const payload = {
-        id: appointmentData.id || crypto.randomUUID(),
+        id: appointmentId,
         client_id: appointmentData.client_id || '',
         vehicle_id: appointmentData.vehicle_id || '',
         service_catalog_id: appointmentData.service_catalog_id || null,
@@ -1569,7 +1587,40 @@ export const operationService = {
         console.error('Erro ao salvar agendamento no Supabase:', error);
         throw new Error(`Erro ao salvar agendamento no Supabase: ${error.message}`);
       }
-      return data as Appointment;
+
+      let savedAddons: AppointmentAddon[] = [];
+      if (appointmentData.addons !== undefined) {
+        await sb.from('appointment_addons').delete().eq('appointment_id', appointmentId);
+        if (appointmentData.addons.length > 0) {
+          const addonsPayload = appointmentData.addons.map((ad) => ({
+            id: ('id' in ad && ad.id) ? ad.id : crypto.randomUUID(),
+            appointment_id: appointmentId,
+            service_catalog_id: ad.service_catalog_id,
+            service_name_snap: ad.service_name_snap,
+            price_snap: Number(ad.price_snap),
+            estimated_duration_minutes_snap: Number(ad.estimated_duration_minutes_snap),
+            created_at: now,
+            updated_at: now,
+          }));
+          const { data: insData, error: insErr } = await sb
+            .from('appointment_addons')
+            .insert(addonsPayload)
+            .select('*');
+          if (insErr) {
+            console.error('Erro ao salvar appointment_addons:', insErr);
+          } else {
+            savedAddons = insData as AppointmentAddon[];
+          }
+        }
+      } else {
+        const { data: exData } = await sb
+          .from('appointment_addons')
+          .select('*')
+          .eq('appointment_id', appointmentId);
+        savedAddons = (exData || []) as AppointmentAddon[];
+      }
+
+      return { ...data, addons: savedAddons } as Appointment;
     }
 
     const list = getLocal<Appointment[]>(OPERATION_STORAGE_KEYS.APPOINTMENTS, DEFAULT_APPOINTMENTS);
@@ -1610,6 +1661,26 @@ export const operationService = {
       };
       list.push(saved);
     }
+
+    const localAddons = getLocal<AppointmentAddon[]>(OPERATION_STORAGE_KEYS.APPOINTMENT_ADDONS, []);
+    let updatedAddons = localAddons.filter((ad) => ad.appointment_id !== saved.id);
+    if (appointmentData.addons !== undefined) {
+      const newAddons: AppointmentAddon[] = appointmentData.addons.map((ad) => ({
+        id: ('id' in ad && ad.id) ? ad.id : crypto.randomUUID(),
+        appointment_id: saved.id,
+        service_catalog_id: ad.service_catalog_id,
+        service_name_snap: ad.service_name_snap,
+        price_snap: Number(ad.price_snap),
+        estimated_duration_minutes_snap: Number(ad.estimated_duration_minutes_snap),
+        created_at: now,
+        updated_at: now,
+      }));
+      updatedAddons.push(...newAddons);
+      saved.addons = newAddons;
+    } else {
+      saved.addons = localAddons.filter((ad) => ad.appointment_id === saved.id);
+    }
+    setLocal(OPERATION_STORAGE_KEYS.APPOINTMENT_ADDONS, updatedAddons);
 
     setLocal(OPERATION_STORAGE_KEYS.APPOINTMENTS, list);
     return saved;
@@ -1667,7 +1738,7 @@ export const operationService = {
     if (sb && !isDemoModeActive()) {
       let query = sb
         .from('executed_services')
-        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*), used_products:executed_service_products(*)');
+        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*), used_products:executed_service_products(*), addons:executed_service_addons(*)');
 
       if (filters?.clientId) query = query.eq('client_id', filters.clientId);
       if (filters?.vehicleId) query = query.eq('vehicle_id', filters.vehicleId);
@@ -1708,6 +1779,15 @@ export const operationService = {
       OPERATION_STORAGE_KEYS.EXECUTED_SERVICES,
       DEFAULT_EXECUTED_SERVICES
     );
+
+    const localAddons = getLocal<ExecutedServiceAddon[]>(
+      OPERATION_STORAGE_KEYS.EXECUTED_SERVICE_ADDONS,
+      []
+    );
+    list = list.map((s) => ({
+      ...s,
+      addons: localAddons.filter((ad) => ad.executed_service_id === s.id),
+    }));
 
     if (filters?.clientId) {
       list = list.filter((s) => s.client_id === filters.clientId);
@@ -1756,7 +1836,7 @@ export const operationService = {
     if (sb && !isDemoModeActive()) {
       const { data, error } = await sb
         .from('executed_services')
-        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*), used_products:executed_service_products(*)')
+        .select('*, client:clients(*), vehicle:vehicles(*), service:service_catalog(*), used_products:executed_service_products(*), addons:executed_service_addons(*)')
         .eq('id', id)
         .maybeSingle();
       if (error) {
@@ -1770,7 +1850,18 @@ export const operationService = {
       OPERATION_STORAGE_KEYS.EXECUTED_SERVICES,
       DEFAULT_EXECUTED_SERVICES
     );
-    return list.find((s) => s.id === id);
+    const s = list.find((item) => item.id === id);
+    if (s) {
+      const localAddons = getLocal<ExecutedServiceAddon[]>(
+        OPERATION_STORAGE_KEYS.EXECUTED_SERVICE_ADDONS,
+        []
+      );
+      return {
+        ...s,
+        addons: localAddons.filter((ad) => ad.executed_service_id === s.id),
+      };
+    }
+    return undefined;
   },
 
   /**
@@ -1787,6 +1878,12 @@ export const operationService = {
     discountAmount?: number;
     notes?: string;
     startedAt?: string;
+    addons?: {
+      service_catalog_id: string;
+      service_name_snap: string;
+      price_snap: number;
+      estimated_duration_minutes_snap: number;
+    }[];
   }): Promise<ExecutedService> => {
     const now = new Date().toISOString();
     const actualStart = params.startedAt || now;
@@ -1797,7 +1894,8 @@ export const operationService = {
 
     const surcharge = Number(params.surchargeAmount || 0);
     const discount = Number(params.discountAmount || 0);
-    const calculatedPrice = Math.max(0, params.basePrice + surcharge - discount);
+    const addonsTotal = (params.addons || []).reduce((sum, a) => sum + Number(a.price_snap || 0), 0);
+    const calculatedPrice = Math.max(0, params.basePrice + addonsTotal + surcharge - discount);
     const finalPrice =
       params.finalPrice !== undefined && params.finalPrice !== null
         ? Math.max(0, Number(params.finalPrice))
@@ -1833,8 +1931,29 @@ export const operationService = {
       used_products: [],
     };
 
+    // Criar snapshots dos adicionais se houver
+    const createdAddons: ExecutedServiceAddon[] = (params.addons || []).map((ad) => ({
+      id: crypto.randomUUID(),
+      executed_service_id: newService.id,
+      service_catalog_id: ad.service_catalog_id,
+      service_name_snap: ad.service_name_snap,
+      price_snap: Number(ad.price_snap),
+      estimated_duration_minutes_snap: Number(ad.estimated_duration_minutes_snap),
+      created_at: now,
+    }));
+    newService.addons = createdAddons;
+
     list.unshift(newService);
     setLocal(OPERATION_STORAGE_KEYS.EXECUTED_SERVICES, list);
+
+    if (createdAddons.length > 0) {
+      const localAddons = getLocal<ExecutedServiceAddon[]>(
+        OPERATION_STORAGE_KEYS.EXECUTED_SERVICE_ADDONS,
+        []
+      );
+      localAddons.push(...createdAddons);
+      setLocal(OPERATION_STORAGE_KEYS.EXECUTED_SERVICE_ADDONS, localAddons);
+    }
 
     const sb = getSupabaseClient();
     if (sb && !isDemoModeActive()) {
@@ -1864,6 +1983,24 @@ export const operationService = {
       if (error) {
         console.error('Erro ao iniciar atendimento no Supabase:', error);
       }
+
+      if (createdAddons.length > 0) {
+        const { error: addonErr } = await sb.from('executed_service_addons').insert(
+          createdAddons.map((ad) => ({
+            id: ad.id,
+            executed_service_id: ad.executed_service_id,
+            appointment_addon_id: null,
+            service_catalog_id: ad.service_catalog_id,
+            service_name_snap: ad.service_name_snap,
+            price_snap: ad.price_snap,
+            estimated_duration_minutes_snap: ad.estimated_duration_minutes_snap,
+            created_at: ad.created_at,
+          }))
+        );
+        if (addonErr) {
+          console.error('Erro ao salvar executed_service_addons no Supabase:', addonErr);
+        }
+      }
     }
 
     return newService;
@@ -1888,9 +2025,30 @@ export const operationService = {
       DEFAULT_EXECUTED_SERVICES
     );
 
+    const sb = getSupabaseClient();
+
+    // Carregar appointment_addons se ainda não presentes no objeto appointment
+    let apptAddons = appointment.addons;
+    if (!apptAddons) {
+      if (sb && !isDemoModeActive()) {
+        const { data: fetchedAddons } = await sb
+          .from('appointment_addons')
+          .select('*')
+          .eq('appointment_id', appointment.id);
+        apptAddons = (fetchedAddons || []) as AppointmentAddon[];
+      } else {
+        const localAptAddons = getLocal<AppointmentAddon[]>(
+          OPERATION_STORAGE_KEYS.APPOINTMENT_ADDONS,
+          []
+        );
+        apptAddons = localAptAddons.filter((a) => a.appointment_id === appointment.id);
+      }
+    }
+
     const surcharge = Number(appointment.surcharge_amount || 0);
     const discount = Number(appointment.discount_amount || 0);
-    const calculatedPrice = Math.max(0, Number(basePrice) + surcharge - discount);
+    const addonsTotal = (apptAddons || []).reduce((sum, a) => sum + Number(a.price_snap || 0), 0);
+    const calculatedPrice = Math.max(0, Number(basePrice) + addonsTotal + surcharge - discount);
     const finalPrice =
       customFinalPrice !== undefined && customFinalPrice !== null
         ? Math.max(0, Number(customFinalPrice))
@@ -1933,13 +2091,34 @@ export const operationService = {
       used_products: [],
     };
 
+    // Copiar cada appointment_addon para executed_service_addons preservando snapshots originais
+    const createdAddons: ExecutedServiceAddon[] = (apptAddons || []).map((ad) => ({
+      id: crypto.randomUUID(),
+      executed_service_id: newService.id,
+      appointment_addon_id: ad.id,
+      service_catalog_id: ad.service_catalog_id,
+      service_name_snap: ad.service_name_snap,
+      price_snap: Number(ad.price_snap),
+      estimated_duration_minutes_snap: Number(ad.estimated_duration_minutes_snap),
+      created_at: now,
+    }));
+    newService.addons = createdAddons;
+
     list.unshift(newService);
     setLocal(OPERATION_STORAGE_KEYS.EXECUTED_SERVICES, list);
+
+    if (createdAddons.length > 0) {
+      const localExecAddons = getLocal<ExecutedServiceAddon[]>(
+        OPERATION_STORAGE_KEYS.EXECUTED_SERVICE_ADDONS,
+        []
+      );
+      localExecAddons.push(...createdAddons);
+      setLocal(OPERATION_STORAGE_KEYS.EXECUTED_SERVICE_ADDONS, localExecAddons);
+    }
 
     // Atualiza status do agendamento para 'in_progress'
     await operationService.updateAppointmentStatus(appointment.id, 'in_progress');
 
-    const sb = getSupabaseClient();
     if (sb && !isDemoModeActive()) {
       const { error } = await sb.from('executed_services').insert({
         id: newService.id,
@@ -1969,6 +2148,24 @@ export const operationService = {
       });
       if (error) {
         console.error('Erro ao iniciar atendimento agendado no Supabase:', error);
+      }
+
+      if (createdAddons.length > 0) {
+        const { error: insAddonErr } = await sb.from('executed_service_addons').insert(
+          createdAddons.map((ad) => ({
+            id: ad.id,
+            executed_service_id: ad.executed_service_id,
+            appointment_addon_id: ad.appointment_addon_id,
+            service_catalog_id: ad.service_catalog_id,
+            service_name_snap: ad.service_name_snap,
+            price_snap: ad.price_snap,
+            estimated_duration_minutes_snap: ad.estimated_duration_minutes_snap,
+            created_at: ad.created_at,
+          }))
+        );
+        if (insAddonErr) {
+          console.error('Erro ao copiar appointment_addons para executed_service_addons no Supabase:', insAddonErr);
+        }
       }
     }
 

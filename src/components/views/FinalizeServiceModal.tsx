@@ -28,6 +28,7 @@ import {
   ProductConsumptionInput,
   FifoBatchAllocation,
   SystemSettings,
+  ServiceDefaultProductItem,
 } from '../../types';
 import { dataService } from '../../services/dataService';
 import { operationService } from '../../services/operationService';
@@ -61,21 +62,30 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   // Preço base/sugerido do catálogo preservado em base_price_snap
   const basePrice = service.base_price_snap || 0;
 
+  // Total de serviços adicionais vinculados a este atendimento
+  const addonsTotal = (service.addons || []).reduce(
+    (sum, addon) => sum + Number(addon.price_snap || 0),
+    0
+  );
+
+  // Subtotal dos serviços (Principal + Adicionais)
+  const servicesSubtotal = basePrice + addonsTotal;
+
   // Opção de atendimento não cobrado / cortesia
   const [isCourtesy, setIsCourtesy] = useState<boolean>(() => {
     return service.final_price !== undefined && service.final_price !== null && service.final_price === 0;
   });
 
-  // Valor cobrado editável pelo operador (sugestão inicial = final_price existente se já informado, ou base + acréscimo - desconto)
+  // Valor cobrado editável pelo operador (sugestão inicial = final_price existente se já informado, ou subtotal + acréscimo - desconto)
   const [chargedPrice, setChargedPrice] = useState<number | ''>(() => {
     if (service.final_price !== undefined && service.final_price !== null) {
       return service.final_price;
     }
-    return Math.max(0, (service.base_price_snap || 0) + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+    return Math.max(0, servicesSubtotal + (service.surcharge_amount || 0) - (service.discount_amount || 0));
   });
 
   const [isPriceCustomized, setIsPriceCustomized] = useState<boolean>(() => {
-    const calc = Math.max(0, (service.base_price_snap || 0) + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+    const calc = Math.max(0, servicesSubtotal + (service.surcharge_amount || 0) - (service.discount_amount || 0));
     return (
       service.final_price !== undefined &&
       service.final_price !== null &&
@@ -111,14 +121,19 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
       setNotes(service.notes || '');
 
       const base = service.base_price_snap || 0;
+      const addTot = (service.addons || []).reduce(
+        (sum, addon) => sum + Number(addon.price_snap || 0),
+        0
+      );
+      const subtotal = base + addTot;
       const hasFinalPrice = service.final_price !== undefined && service.final_price !== null;
       const initialPrice = hasFinalPrice
         ? service.final_price
-        : Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+        : Math.max(0, subtotal + (service.surcharge_amount || 0) - (service.discount_amount || 0));
       setChargedPrice(initialPrice);
       setIsCourtesy(hasFinalPrice && service.final_price === 0);
 
-      const calc = Math.max(0, base + (service.surcharge_amount || 0) - (service.discount_amount || 0));
+      const calc = Math.max(0, subtotal + (service.surcharge_amount || 0) - (service.discount_amount || 0));
       setIsPriceCustomized(
         hasFinalPrice && Math.abs((service.final_price as number) - calc) > 0.001
       );
@@ -147,14 +162,29 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
       setFinishedAtStr(localIso);
       setPaidAtStr(localIso);
 
-      // Carrega receita padrão para o serviço se ainda não houver produtos
-      const defaultRecipe = service.service_catalog_id
+      // Carrega receita padrão para o serviço principal e todos os adicionais
+      const mainRecipe = service.service_catalog_id
         ? operationService.getDefaultServiceProducts(service.service_catalog_id)
         : [];
+      const addonRecipes = (service.addons || []).flatMap((addon) =>
+        operationService.getDefaultServiceProducts(addon.service_catalog_id)
+      );
+
+      // Agrega quantidades por product_id se o produto constar em mais de uma receita
+      const aggregatedRecipeMap = new Map<string, ServiceDefaultProductItem>();
+      for (const item of [...mainRecipe, ...addonRecipes]) {
+        const existing = aggregatedRecipeMap.get(item.product_id);
+        if (existing) {
+          existing.suggested_quantity = Math.round((existing.suggested_quantity + item.suggested_quantity) * 10000) / 10000;
+        } else {
+          aggregatedRecipeMap.set(item.product_id, { ...item });
+        }
+      }
+      const combinedRecipe = Array.from(aggregatedRecipeMap.values());
 
       const initialInputs: ProductConsumptionInput[] = [];
 
-      for (const item of defaultRecipe) {
+      for (const item of combinedRecipe) {
         const prod = prods.find((p) => p.id === item.product_id);
         const unit = prod ? prod.unit : item.unit;
         const allocs = await operationService.calculateFifoAllocation(
@@ -192,10 +222,10 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   const hoursDisplay = Math.floor(durationMinutes / 60);
   const minutesDisplay = durationMinutes % 60;
 
-  // Sugestão automática calculada a partir do catálogo + acréscimo - desconto
+  // Sugestão automática calculada a partir de subtotal dos serviços + acréscimo - desconto
   const suggestedPrice = Math.max(
     0,
-    basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0)
+    servicesSubtotal + Number(surchargeAmount || 0) - Number(discountAmount || 0)
   );
 
   // Valor final efetivo a ser cobrado (se cortesia, é estritamente 0)
@@ -209,7 +239,7 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
       setIsPriceCustomized(true);
       setPaymentStatus('paid');
     } else {
-      const restored = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+      const restored = Math.max(0, servicesSubtotal + Number(surchargeAmount || 0) - Number(discountAmount || 0));
       setChargedPrice(restored);
       setIsPriceCustomized(false);
     }
@@ -222,7 +252,7 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
       const suggestedSurcharge = systemSettings.condition_surcharges[newLevel] || 0;
       setSurchargeAmount(suggestedSurcharge);
       if (!isPriceCustomized && !isCourtesy) {
-        setChargedPrice(Math.max(0, basePrice + suggestedSurcharge - Number(discountAmount || 0)));
+        setChargedPrice(Math.max(0, servicesSubtotal + suggestedSurcharge - Number(discountAmount || 0)));
       }
     }
   };
@@ -230,14 +260,14 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
   const handleSurchargeChange = (newSurcharge: number) => {
     setSurchargeAmount(newSurcharge);
     if (!isPriceCustomized && !isCourtesy) {
-      setChargedPrice(Math.max(0, basePrice + newSurcharge - Number(discountAmount || 0)));
+      setChargedPrice(Math.max(0, servicesSubtotal + newSurcharge - Number(discountAmount || 0)));
     }
   };
 
   const handleDiscountChange = (newDiscount: number) => {
     setDiscountAmount(newDiscount);
     if (!isPriceCustomized && !isCourtesy) {
-      setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - newDiscount));
+      setChargedPrice(Math.max(0, servicesSubtotal + Number(surchargeAmount || 0) - newDiscount));
     }
   };
 
@@ -668,17 +698,29 @@ export const FinalizeServiceModal: React.FC<FinalizeServiceModalProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                  Valor sugerido: <strong className="text-slate-700">R$ {suggestedPrice.toFixed(2)}</strong>
                   {isCourtesy ? (
                     <span className="text-blue-700 font-semibold ml-1.5">• Atendimento não cobrado (Cortesia)</span>
                   ) : isPriceCustomized && Number(chargedPrice) !== suggestedPrice ? (
                     <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
                   ) : null}
                 </p>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  Base: R$ {basePrice.toFixed(2)}
-                  {surchargeAmount > 0 && ` + Acréscimo: R$ ${Number(surchargeAmount).toFixed(2)}`}
-                  {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+                <div className="text-[11px] text-slate-500 mt-1 space-y-0.5">
+                  <div>
+                    Principal: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong> ({service.service_name_snap})
+                  </div>
+                  {service.addons && service.addons.length > 0 && (
+                    <div className="text-emerald-700">
+                      Adicionais: <strong>+ R$ {addonsTotal.toFixed(2)}</strong> ({service.addons.map((a) => `${a.service_name_snap} R$ ${Number(a.price_snap).toFixed(2)}`).join(', ')})
+                    </div>
+                  )}
+                  {addonsTotal > 0 && (
+                    <div className="text-slate-700 font-medium">
+                      Subtotal Serviços: <strong>R$ {servicesSubtotal.toFixed(2)}</strong>
+                    </div>
+                  )}
+                  {surchargeAmount > 0 && <div>+ Acréscimo: R$ {Number(surchargeAmount).toFixed(2)}</div>}
+                  {discountAmount > 0 && <div>- Desconto: R$ {Number(discountAmount).toFixed(2)}</div>}
                 </div>
               </div>
 

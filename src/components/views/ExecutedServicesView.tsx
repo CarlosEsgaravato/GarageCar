@@ -405,6 +405,18 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
                             <strong className="text-indigo-900 text-sm block">
                               {service.service_name_snap}
                             </strong>
+                            {service.addons && service.addons.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {service.addons.map((addon) => (
+                                  <span
+                                    key={addon.id || addon.service_catalog_id}
+                                    className="inline-flex items-center rounded-sm bg-emerald-50 text-emerald-800 text-[10px] font-medium px-1.5 py-0.5 border border-emerald-200/50"
+                                  >
+                                    +{addon.service_name_snap} (R$ {Number(addon.price_snap).toFixed(2)})
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 mt-0.5">
                               <span>Preço Base: R$ {(service.base_price_snap || 0).toFixed(2)}</span>
                               {service.surcharge_amount > 0 && (
@@ -592,6 +604,18 @@ export const ExecutedServicesView: React.FC<ExecutedServicesViewProps> = ({
                             <div className="font-semibold text-indigo-900">
                               {service.service_name_snap}
                             </div>
+                            {service.addons && service.addons.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {service.addons.map((addon) => (
+                                  <span
+                                    key={addon.id || addon.service_catalog_id}
+                                    className="inline-flex items-center rounded-sm bg-emerald-50 text-emerald-800 text-[9px] font-medium px-1 py-0.2 border border-emerald-200/50"
+                                  >
+                                    +{addon.service_name_snap}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <div className="text-[10px] text-blue-700">
                               {service.vehicle_category_snap}
                               {service.is_rework && (

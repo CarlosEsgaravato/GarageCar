@@ -584,6 +584,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                         </div>
                       </div>
 
+                      {apt.addons && apt.addons.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {apt.addons.map((addon) => (
+                            <span
+                              key={addon.id || addon.service_catalog_id}
+                              className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800"
+                            >
+                              + {addon.service_name_snap} (R$ {Number(addon.price_snap).toFixed(2)})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                       {apt.notes && (
                         <p className="rounded-lg bg-slate-50 p-2 text-[11px] text-slate-600 italic">
                           "{apt.notes}"
@@ -917,6 +930,14 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   <span className="text-slate-500 font-medium">Serviço: </span>
                   <strong className="text-slate-800">{getService(startingApt.service_catalog_id)?.name}</strong>
                 </div>
+                {startingApt.addons && startingApt.addons.length > 0 && (
+                  <div>
+                    <span className="text-slate-500 font-medium">Adicionais: </span>
+                    <span className="text-slate-800 font-semibold">
+                      {startingApt.addons.map((a) => `${a.service_name_snap} (R$ ${Number(a.price_snap).toFixed(2)})`).join(', ')}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <span className="text-slate-500 font-medium">Planejado: </span>
                   <span className="text-slate-700 font-semibold">

@@ -33,6 +33,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const [clientId, setClientId] = useState<string>('');
   const [vehicleId, setVehicleId] = useState<string>('');
   const [serviceId, setServiceId] = useState<string>('');
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [conditionLevel, setConditionLevel] = useState<ConditionLevel>('normal');
   const [surchargeAmount, setSurchargeAmount] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -54,6 +55,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
       setDiscountAmount(0);
       setChargedPrice('');
       setIsPriceCustomized(false);
+      setSelectedAddonIds([]);
       setNotes('');
       const now = new Date();
       const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -88,6 +90,10 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
   const selectedService = services.find((s) => s.id === serviceId);
 
+  // Separação entre serviço principal e serviços adicionais
+  const mainServices = services.filter((s) => s.service_type !== 'adicional');
+  const addonServices = services.filter((s) => s.service_type === 'adicional');
+
   // Auto-seleciona veículo caso único
   useEffect(() => {
     if (clientVehicles.length === 1 && !vehicleId) {
@@ -108,25 +114,70 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
     return priceRecord ? priceRecord.price : 0;
   };
 
-  const basePrice = getBasePrice();
-  const suggestedPrice = Math.max(0, basePrice + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+  // Helper para obter preço e duração de serviço adicional por categoria
+  const getAddonInfo = (addonItem: ServiceCatalogItem) => {
+    if (!selectedVehicle) {
+      return { price: 0, duration: addonItem.estimated_duration_minutes, isAvailable: false };
+    }
+    const priceRecord = servicePrices.find(
+      (p) =>
+        p.service_id === addonItem.id &&
+        p.commercial_category === selectedVehicle.commercial_category
+    );
+    if (!priceRecord || !priceRecord.is_active) {
+      return { price: 0, duration: addonItem.estimated_duration_minutes, isAvailable: false };
+    }
+    return {
+      price: priceRecord.price,
+      duration: priceRecord.estimated_duration_minutes ?? addonItem.estimated_duration_minutes,
+      isAvailable: true,
+    };
+  };
 
-  // Recalcula e sugere o preço sempre que serviço ou veículo mudar se o operador não tiver editado manualmente
+  // Snapshots dos adicionais selecionados
+  const selectedAddonsData = addonServices
+    .filter((addon) => selectedAddonIds.includes(addon.id))
+    .map((addon) => {
+      const info = getAddonInfo(addon);
+      return {
+        service_catalog_id: addon.id,
+        service_name_snap: addon.name,
+        price_snap: info.price,
+        estimated_duration_minutes_snap: info.duration,
+      };
+    });
+
+  const basePrice = getBasePrice();
+  const addonsTotal = selectedAddonsData.reduce((sum, item) => sum + item.price_snap, 0);
+  const servicesSubtotal = basePrice + addonsTotal;
+  const suggestedPrice = Math.max(0, servicesSubtotal + Number(surchargeAmount || 0) - Number(discountAmount || 0));
+
+  // Duração prevista: principal da matriz (ou catálogo) + adicionais
+  const mainPriceRecord = selectedService && selectedVehicle
+    ? servicePrices.find(
+        (p) =>
+          p.service_id === selectedService.id &&
+          p.commercial_category === selectedVehicle.commercial_category
+      )
+    : null;
+  const mainDuration =
+    mainPriceRecord?.estimated_duration_minutes ?? selectedService?.estimated_duration_minutes ?? 0;
+  const addonsDuration = selectedAddonsData.reduce(
+    (sum, item) => sum + item.estimated_duration_minutes_snap,
+    0
+  );
+  const totalEstimatedDuration = mainDuration + addonsDuration;
+
+  // Recalcula e sugere o preço sempre que serviço, adicionais ou veículo mudar se o operador não tiver editado manualmente
   useEffect(() => {
     if (!isPriceCustomized) {
       if (selectedService && selectedVehicle) {
-        const priceRecord = servicePrices.find(
-          (p) =>
-            p.service_id === selectedService.id &&
-            p.commercial_category === selectedVehicle.commercial_category
-        );
-        const base = priceRecord ? priceRecord.price : 0;
-        setChargedPrice(Math.max(0, base + Number(surchargeAmount || 0) - Number(discountAmount || 0)));
+        setChargedPrice(suggestedPrice);
       } else {
         setChargedPrice('');
       }
     }
-  }, [selectedService?.id, selectedVehicle?.commercial_category, isPriceCustomized, surchargeAmount, discountAmount]);
+  }, [selectedService?.id, selectedVehicle?.commercial_category, selectedAddonIds, isPriceCustomized, surchargeAmount, discountAmount, suggestedPrice]);
 
   // Recalcula acréscimo ao mudar nível de condição
   const handleConditionChange = (newLevel: ConditionLevel) => {
@@ -135,7 +186,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
       const suggested = systemSettings.condition_surcharges[newLevel] || 0;
       setSurchargeAmount(suggested);
       if (!isPriceCustomized) {
-        setChargedPrice(Math.max(0, basePrice + suggested - Number(discountAmount || 0)));
+        setChargedPrice(Math.max(0, servicesSubtotal + suggested - Number(discountAmount || 0)));
       }
     }
   };
@@ -143,20 +194,26 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
   const handleSurchargeChange = (val: number) => {
     setSurchargeAmount(val);
     if (!isPriceCustomized) {
-      setChargedPrice(Math.max(0, basePrice + val - Number(discountAmount || 0)));
+      setChargedPrice(Math.max(0, servicesSubtotal + val - Number(discountAmount || 0)));
     }
   };
 
   const handleDiscountChange = (val: number) => {
     setDiscountAmount(val);
     if (!isPriceCustomized) {
-      setChargedPrice(Math.max(0, basePrice + Number(surchargeAmount || 0) - val));
+      setChargedPrice(Math.max(0, servicesSubtotal + Number(surchargeAmount || 0) - val));
     }
   };
 
   const handleServiceChange = (id: string) => {
     setServiceId(id);
     setIsPriceCustomized(false);
+  };
+
+  const handleToggleAddon = (addonId: string) => {
+    setSelectedAddonIds((prev) =>
+      prev.includes(addonId) ? prev.filter((id) => id !== addonId) : [...prev, addonId]
+    );
   };
 
   const handleChargedPriceChange = (val: number | '') => {
@@ -213,6 +270,7 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
         discountAmount: Number(discountAmount || 0),
         notes: notes.trim(),
         startedAt: startedAt,
+        addons: selectedAddonsData,
       });
 
       onSuccess(newService);
@@ -302,11 +360,11 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
             </select>
           </div>
 
-          {/* Seleção do Serviço */}
+          {/* Seleção do Serviço Principal */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-              Serviço a Executar *
+              Serviço Principal a Executar *
             </label>
             <select
               required
@@ -314,13 +372,77 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
               onChange={(e) => handleServiceChange(e.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
             >
-              <option value="">Selecione o serviço...</option>
-              {services.map((srv) => (
+              <option value="">Selecione o serviço principal...</option>
+              {mainServices.map((srv) => (
                 <option key={srv.id} value={srv.id}>
-                  {srv.name} (Previsto: {srv.estimated_duration_minutes} min)
+                  {srv.name}
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Serviços adicionais (opcional) */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-emerald-600" />
+                Serviços adicionais (opcional)
+              </label>
+              {selectedAddonIds.length > 0 && (
+                <span className="text-[11px] font-semibold text-emerald-700">
+                  {selectedAddonIds.length} selecionado(s) (+ R$ {addonsTotal.toFixed(2)})
+                </span>
+              )}
+            </div>
+
+            {addonServices.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Nenhum serviço adicional cadastrado no catálogo.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {addonServices.map((addon) => {
+                  const info = getAddonInfo(addon);
+                  const isChecked = selectedAddonIds.includes(addon.id);
+
+                  return (
+                    <label
+                      key={addon.id}
+                      className={`flex items-start gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-all ${
+                        !info.isAvailable
+                          ? 'border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed'
+                          : isChecked
+                          ? 'border-emerald-500 bg-emerald-50/80 text-emerald-950 font-medium shadow-2xs'
+                          : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!info.isAvailable}
+                        checked={isChecked}
+                        onChange={() => handleToggleAddon(addon.id)}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate font-semibold text-slate-800">{addon.name}</span>
+                        {info.isAvailable ? (
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                            <span className="font-bold text-emerald-700">R$ {info.price.toFixed(2)}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-0.5">
+                              <Clock className="h-3 w-3" />
+                              {info.duration} min
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-amber-600 font-medium block mt-0.5">
+                            Preço não definido para esta categoria
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Precificação e Condição */}
@@ -409,15 +531,28 @@ export const WalkInModal: React.FC<WalkInModalProps> = ({
                     )}
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Valor sugerido pelo catálogo: <strong className="text-slate-700">R$ {basePrice.toFixed(2)}</strong>
+                    Valor sugerido: <strong className="text-slate-700">R$ {suggestedPrice.toFixed(2)}</strong>
                     {isPriceCustomized && Number(chargedPrice) !== suggestedPrice && (
                       <span className="text-amber-700 font-semibold ml-1.5">• Valor editado manualmente</span>
                     )}
                   </p>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    Base ({selectedVehicle?.commercial_category || 'Categoria'}): R$ {basePrice.toFixed(2)}
-                    {surchargeAmount > 0 && ` + Sujeira: R$ ${Number(surchargeAmount).toFixed(2)}`}
-                    {discountAmount > 0 && ` - Desconto: R$ ${Number(discountAmount).toFixed(2)}`}
+                  <div className="text-[11px] text-slate-400 mt-0.5 space-y-0.5">
+                    <div>
+                      Principal ({selectedVehicle?.commercial_category || 'Categoria'}): R$ {basePrice.toFixed(2)}
+                    </div>
+                    {addonsTotal > 0 && (
+                      <div className="text-emerald-700">
+                        + Adicionais: R$ {addonsTotal.toFixed(2)} (Subtotal serviços: R$ {servicesSubtotal.toFixed(2)})
+                      </div>
+                    )}
+                    {surchargeAmount > 0 && <div>+ Sujeira: R$ {Number(surchargeAmount).toFixed(2)}</div>}
+                    {discountAmount > 0 && <div>- Desconto: R$ {Number(discountAmount).toFixed(2)}</div>}
+                    {totalEstimatedDuration > 0 && (
+                      <div className="text-slate-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="h-3 w-3" />
+                        Duração prevista: <strong>{totalEstimatedDuration} min</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
 

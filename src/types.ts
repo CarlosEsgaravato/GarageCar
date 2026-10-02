@@ -206,6 +206,30 @@ export type AppointmentStatus =
   | 'cancelled'
   | 'no_show';
 
+export interface AppointmentAddon {
+  id: UUID;
+  appointment_id: UUID;
+  service_catalog_id: UUID;
+  service_name_snap: string;
+  price_snap: number;
+  estimated_duration_minutes_snap: number;
+  created_at: string;
+  updated_at: string;
+  service?: ServiceCatalogItem;
+}
+
+export interface ExecutedServiceAddon {
+  id: UUID;
+  executed_service_id: UUID;
+  appointment_addon_id?: UUID;
+  service_catalog_id: UUID;
+  service_name_snap: string;
+  price_snap: number;
+  estimated_duration_minutes_snap: number;
+  created_at: string;
+  service?: ServiceCatalogItem;
+}
+
 export interface Appointment {
   id: UUID;
   client_id: UUID;
@@ -228,6 +252,7 @@ export interface Appointment {
   client?: Client;
   vehicle?: Vehicle;
   service?: ServiceCatalogItem;
+  addons?: AppointmentAddon[];
 }
 
 export type PaymentStatus = 'pending' | 'paid' | 'cancelled';
@@ -334,6 +359,7 @@ export interface ExecutedService {
   used_products?: ExecutedServiceProductItem[];
   client?: Client;
   vehicle?: Vehicle;
+  addons?: ExecutedServiceAddon[];
 }
 
 // ==========================================

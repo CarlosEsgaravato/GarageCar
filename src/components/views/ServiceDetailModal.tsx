@@ -151,6 +151,17 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 <span className="text-slate-500">
                   Preço Base: R$ {(service.base_price_snap || 0).toFixed(2)}
                 </span>
+                {service.addons && service.addons.length > 0 && (
+                  <div className="mt-1 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Adicionais:</span>
+                    {service.addons.map((a) => (
+                      <div key={a.id} className="text-xs text-emerald-800 font-medium flex items-center justify-between gap-2">
+                        <span>+ {a.service_name_snap}</span>
+                        <span>R$ {Number(a.price_snap).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
