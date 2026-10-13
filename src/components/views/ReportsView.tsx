@@ -72,7 +72,7 @@ export const ReportsView: React.FC = () => {
       setData(result);
     } catch (err: any) {
       console.error('Erro ao carregar dados consolidados para relatórios:', err);
-      setError(err.message || 'Falha ao carregar dados do Supabase. Verifique a conexão.');
+      setError('Não foi possível carregar os dados dos relatórios. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,14 +122,9 @@ export const ReportsView: React.FC = () => {
       {/* 1. Header do Módulo com Seletor de Período */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-slate-100 tracking-tight">
-              Relatórios Gerenciais
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              Dados Reais Supabase
-            </span>
-          </div>
+          <h1 className="text-xl font-bold text-slate-100 tracking-tight">
+            Relatórios Gerenciais
+          </h1>
           <p className="text-xs text-slate-400 mt-1">
             Consolidação analítica de serviços, faturamento, despesas, estoque físico e patrimônio
           </p>
@@ -281,7 +276,7 @@ export const ReportsView: React.FC = () => {
         <div className="flex flex-col items-center justify-center py-24 space-y-3">
           <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
           <p className="text-sm text-slate-400">
-            Consolidando dados analíticos do Supabase...
+            Consolidando dados analíticos...
           </p>
         </div>
       ) : error ? (

@@ -295,14 +295,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Agenda de Atendimentos
-            </h1>
-            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-              Fase 3: Operação
-            </span>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Agenda de Atendimentos
+          </h1>
           <p className="text-sm text-slate-500">
             Planejamento diário e semanal, detecção de conflitos e início imediato de serviços.
           </p>

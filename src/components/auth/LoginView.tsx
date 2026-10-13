@@ -5,18 +5,15 @@ import {
   Mail,
   ShieldCheck,
   AlertCircle,
-  Database,
-  ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface LoginViewProps {
-  onOpenDbModal: () => void;
+  onOpenDbModal?: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onOpenDbModal }) => {
-  const { signIn, enableDemoMode, isConfigured, error: authError } = useAuth();
+export const LoginView: React.FC<LoginViewProps> = () => {
+  const { signIn, error: authError } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,10 +36,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onOpenDbModal }) => {
     if (!result.success && result.error) {
       setErrorMessage(result.error);
     }
-  };
-
-  const handleDemoAccess = () => {
-    enableDemoMode();
   };
 
   return (
@@ -72,14 +65,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onOpenDbModal }) => {
 
           {/* Formulário de Login */}
           <div className="p-8 pt-6 space-y-6">
-            <div className="flex items-center justify-between rounded-lg bg-slate-950/70 p-3 border border-slate-800 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>Acesso exclusivo ao administrador</span>
-              </div>
-              <span className="text-[10px] uppercase font-bold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/40">
-                Fase 1
-              </span>
+            <div className="flex items-center gap-2 rounded-lg bg-slate-950/70 p-3 border border-slate-800 text-xs text-slate-300">
+              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>Acesso exclusivo ao administrador</span>
             </div>
 
             {(errorMessage || authError) && (
@@ -134,51 +122,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onOpenDbModal }) => {
                 {loading ? 'Autenticando...' : 'Acessar Painel'}
               </button>
             </form>
-
-            {/* Divisor */}
-            <div className="relative flex items-center justify-center">
-              <div className="border-t border-slate-800 w-full" />
-              <span className="bg-slate-900 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Ou Avaliação Imediata
-              </span>
-            </div>
-
-            {/* Acesso Modo Demonstração para visualização no AI Studio */}
-            <button
-              id="btn-demo-access"
-              type="button"
-              onClick={handleDemoAccess}
-              className="group flex w-full items-center justify-between rounded-xl border border-slate-700/80 bg-slate-950/60 p-3.5 text-left text-xs transition-all hover:border-blue-500 hover:bg-slate-950"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-950/80 text-blue-400 border border-blue-800/40 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-200">
-                    Modo Demonstração do Administrador
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Navegue pela Fase 1, layout e arquitetura sem aguardar banco
-                  </p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
-            </button>
-
-            {/* Rodapé do Login: Configurar Banco */}
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={onOpenDbModal}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                <Database className="h-3.5 w-3.5" />
-                <span>
-                  {isConfigured ? 'Ver Conexão Supabase & SQL' : 'Configurar URL & Anon Key do Supabase'}
-                </span>
-              </button>
-            </div>
           </div>
         </div>
 

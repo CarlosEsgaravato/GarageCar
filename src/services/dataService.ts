@@ -706,7 +706,8 @@ export const dataService = {
         .select('id')
         .eq('client_id', id);
       if (vErr) {
-        return { success: false, error: `Erro Supabase: ${vErr.message}` };
+        console.error('Erro Supabase ao consultar veículos:', vErr);
+        return { success: false, error: 'Não foi possível verificar veículos vinculados. Tente novamente.' };
       }
       if (vehicles && vehicles.length > 0) {
         return {
@@ -716,7 +717,8 @@ export const dataService = {
       }
       const { error } = await sb.from('clients').delete().eq('id', id);
       if (error) {
-        return { success: false, error: `Erro Supabase: ${error.message}` };
+        console.error('Erro Supabase ao excluir cliente:', error);
+        return { success: false, error: 'Não foi possível excluir o cliente. Tente novamente.' };
       }
       return { success: true };
     }

@@ -703,15 +703,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateToVehicles }
                 )}
               </div>
 
-              {/* Aviso de Próxima Fase: Histórico de Serviços */}
-              <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3.5 flex items-center gap-3">
-                <FileText className="h-4 w-4 text-slate-400 shrink-0" />
-                <p className="text-xs text-slate-400">
-                  O histórico completo de serviços executados e atendimentos será visualizável aqui
-                  a partir da <strong>Fase 3 (Agenda e Execução)</strong>.
-                </p>
-              </div>
-
               {/* Ações do Footer */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-800">
                 <button

@@ -10,7 +10,6 @@ import {
   X,
   AlertTriangle,
   Tag,
-  Info,
   Layers,
   Sparkles,
   Droplets,
@@ -295,19 +294,6 @@ export const ProductsView: React.FC = () => {
             <Plus className="h-4 w-4" />
             Novo Produto
           </button>
-        </div>
-      </div>
-
-      {/* Banner Informativo de Fase 2 */}
-      <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 flex items-start gap-3">
-        <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-700 space-y-1">
-          <p className="font-semibold text-blue-900">Fase 2: Catálogo de Produtos e Insumos</p>
-          <p className="text-slate-600">
-            Nesta fase realizamos o cadastro e a padronização dos insumos utilizados na estética. A gestão
-            de estoque físico, entradas de lotes, datas de validade e valoração FIFO serão implementadas
-            na <strong>Fase 4 (Estoque e Financeiro)</strong>.
-          </p>
         </div>
       </div>
 

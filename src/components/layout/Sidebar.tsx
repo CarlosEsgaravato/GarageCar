@@ -122,9 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center gap-2 text-xs text-slate-300">
             <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
             <span className="truncate font-medium">Painel do Administrador</span>
-            <span className="ml-auto rounded-full bg-blue-900/60 px-2 py-0.5 text-[10px] font-semibold text-blue-300 border border-blue-700/50">
-              Fase 2
-            </span>
           </div>
         </div>
 
@@ -409,10 +406,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-3 text-xs">
             <div className="flex items-center justify-between text-slate-300 mb-1">
               <span className="font-semibold text-slate-200">Garage Car</span>
-              <span className="text-[10px] text-emerald-400 font-mono">v3.0-Fase3</span>
+              <span className="text-[10px] text-slate-400 font-mono">v3.0</span>
             </div>
             <p className="text-[11px] text-slate-400 leading-tight">
-              Operação • Agenda • FIFO • RLS Ativo
+              Sistema de Gestão Automotiva
             </p>
           </div>
         </div>

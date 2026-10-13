@@ -110,10 +110,10 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                Supabase & Arquitetura de Banco de Dados
+                Conexão e Infraestrutura de Dados
               </h2>
               <p className="text-xs text-slate-300">
-                Fase 1: Fundação, DDL PostgreSQL, RLS e Credenciais
+                Parâmetros de Conexão, DDL PostgreSQL e Credenciais
               </p>
             </div>
           </div>
@@ -324,10 +324,10 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
             <div className="space-y-4 max-w-3xl mx-auto">
               <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
                 <h4 className="text-sm font-bold text-blue-900 mb-1">
-                  Diretrizes Rigorosas de Arquitetura da Garage Car
+                  Diretrizes de Infraestrutura da Garage Car
                 </h4>
                 <p className="text-xs text-blue-800">
-                  Todas as decisões técnicas e regras de negócio da Fase 1 foram implementadas em total conformidade com o documento de requisitos.
+                  Todas as decisões técnicas e regras de negócio foram implementadas em total conformidade com o documento de requisitos operacionais.
                 </p>
               </div>
 
@@ -390,7 +390,7 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose })
         {/* Rodapé do Modal */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3">
           <span className="text-xs text-slate-500">
-            Fase 1: Fundação & Segurança Concluída
+            Infraestrutura de Dados & Segurança Ativa
           </span>
           <button
             onClick={onClose}

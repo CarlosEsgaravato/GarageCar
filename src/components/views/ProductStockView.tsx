@@ -81,7 +81,7 @@ export const ProductStockView: React.FC = () => {
       setMovements(allMovements);
     } catch (err: any) {
       console.error('Erro ao carregar dados de estoque:', err);
-      showFeedback('error', err.message || 'Erro ao carregar estoque do Supabase.');
+      showFeedback('error', 'Não foi possível carregar os dados de estoque. Tente novamente.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -397,14 +397,9 @@ export const ProductStockView: React.FC = () => {
       {/* Header com Ações e KPIs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Controle de Estoque
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-              Supabase Real
-            </span>
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Controle de Estoque
+          </h1>
           <p className="text-sm text-slate-600 mt-1">
             Visualização consolidada de produtos ativos, saldo por lotes, histórico de movimentações e ajustes manuais.
           </p>
@@ -416,7 +411,7 @@ export const ProductStockView: React.FC = () => {
             onClick={() => loadData(true)}
             disabled={refreshing}
             className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium border border-slate-300 shadow-xs transition-all disabled:opacity-50"
-            title="Atualizar dados do Supabase"
+            title="Atualizar dados de estoque"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
             <span className="hidden sm:inline">Atualizar</span>
@@ -581,7 +576,7 @@ export const ProductStockView: React.FC = () => {
         {loading ? (
           <div className="p-12 text-center text-slate-400 space-y-3">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
-            <p className="text-sm">Carregando dados de estoque do Supabase...</p>
+            <p className="text-sm">Carregando dados de estoque...</p>
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="p-12 text-center text-slate-400 space-y-3">
@@ -1061,7 +1056,7 @@ export const ProductStockView: React.FC = () => {
                   {isSubmittingAdjust ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Salvando no Supabase...</span>
+                      <span>Salvando alterações...</span>
                     </>
                   ) : (
                     <>

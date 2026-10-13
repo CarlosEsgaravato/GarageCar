@@ -1,49 +1,21 @@
 import React, { useState } from 'react';
 import {
   Settings,
-  Database,
-  ShieldCheck,
   Clock,
   Coins,
-  Save,
-  CheckCircle2,
-  HardDrive,
-  Copy,
-  Check,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { getActiveSupabaseConfig, saveCustomSupabaseCredentials } from '../../lib/supabase';
-/* === ÁREA TEMPORÁRIA DE DIAGNÓSTICO SUPABASE NO NAVEGADOR (REMOVÍVEL) === */
-import { BrowserSupabaseDiagnostic } from '../diagnostics/BrowserSupabaseDiagnostic';
 
 interface ConfigurationViewProps {
-  onOpenDbModal: () => void;
+  onOpenDbModal?: () => void;
 }
 
-export const ConfigurationView: React.FC<ConfigurationViewProps> = ({ onOpenDbModal }) => {
-  const { isConfigured, isDemoMode, refreshConfig } = useAuth();
-  const config = getActiveSupabaseConfig();
-
-  const [supabaseUrl, setSupabaseUrl] = useState(config.url);
-  const [supabaseKey, setSupabaseKey] = useState(config.anonKey);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // Valores padrão dos acréscimos (Seção 10)
-  const [surcharges, setSurcharges] = useState({
+export const ConfigurationView: React.FC<ConfigurationViewProps> = () => {
+  // Valores padrão dos acréscimos
+  const [surcharges] = useState({
     normal: 0.0,
     above_normal: 10.0,
     heavy: 20.0,
   });
-
-  const handleSaveSupabase = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (supabaseUrl && supabaseKey) {
-      saveCustomSupabaseCredentials(supabaseUrl, supabaseKey);
-      refreshConfig();
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    }
-  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -59,106 +31,20 @@ export const ConfigurationView: React.FC<ConfigurationViewProps> = ({ onOpenDbMo
                 Configurações do Sistema Garage Car
               </h2>
               <p className="text-xs text-slate-500">
-                Parâmetros operacionais, conexão Supabase, segurança e regras de negócio
+                Parâmetros operacionais, horários de atendimento e regras de negócio
               </p>
             </div>
           </div>
-          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-            Fase 1
-          </span>
         </div>
       </div>
 
-      {/* === ÁREA TEMPORÁRIA DE DIAGNÓSTICO SUPABASE NO NAVEGADOR (REMOVÍVEL) === */}
-      <BrowserSupabaseDiagnostic />
-
-      {/* Card 1: Conexão Supabase */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">
-              Conexão Backend (Supabase)
-            </h3>
-          </div>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-              isConfigured && !isDemoMode
-                ? 'bg-emerald-100 text-emerald-800'
-                : isDemoMode
-                ? 'bg-amber-100 text-amber-800'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {isConfigured && !isDemoMode
-              ? 'Conectado Oficial'
-              : isDemoMode
-              ? 'Modo Demonstração'
-              : 'Não Configurado'}
-          </span>
-        </div>
-
-        <form onSubmit={handleSaveSupabase} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Supabase Project URL
-            </label>
-            <input
-              type="text"
-              value={supabaseUrl}
-              onChange={(e) => setSupabaseUrl(e.target.value)}
-              placeholder="https://exemplo.supabase.co"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-600 focus:outline-hidden"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Supabase Anon Key
-            </label>
-            <input
-              type="password"
-              value={supabaseKey}
-              onChange={(e) => setSupabaseKey(e.target.value)}
-              placeholder="eyJhbGciOi..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-600 focus:outline-hidden"
-            />
-          </div>
-
-          {saveSuccess && (
-            <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-2.5 text-xs font-medium text-emerald-800 border border-emerald-200">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span>Credenciais salvas com sucesso!</span>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-2">
-            <button
-              type="button"
-              onClick={onOpenDbModal}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-            >
-              Abrir Inspetor de DDL & Teste de Conexão
-            </button>
-
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-xs"
-            >
-              <Save className="h-3.5 w-3.5" />
-              <span>Salvar Credenciais</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Card 2: Horários Operacionais Padrão (Seção 11) */}
+      {/* Card 2: Horários Operacionais Padrão */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
           <Clock className="h-5 w-5 text-blue-600" />
           <div>
             <h3 className="text-sm font-bold text-slate-900">
-              Horários de Funcionamento (Seção 11)
+              Horários de Funcionamento
             </h3>
             <p className="text-xs text-slate-500">
               A Garage Car funciona principalmente aos finais de semana, mas o sistema permite exceções em qualquer dia.
@@ -199,13 +85,13 @@ export const ConfigurationView: React.FC<ConfigurationViewProps> = ({ onOpenDbMo
         </div>
       </div>
 
-      {/* Card 3: Sugestões de Acréscimos (Seção 10) */}
+      {/* Card 3: Sugestões de Acréscimos */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
           <Coins className="h-5 w-5 text-blue-600" />
           <div>
             <h3 className="text-sm font-bold text-slate-900">
-              Tabela Sugerida de Acréscimos (Seção 10)
+              Tabela Sugerida de Acréscimos
             </h3>
             <p className="text-xs text-slate-500">
               Valores sugeridos para condições do veículo no momento do serviço.

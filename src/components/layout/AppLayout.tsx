@@ -32,7 +32,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <Header
           currentView={currentView}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
-          onOpenDbModal={() => setIsDbModalOpen(true)}
           onNavigateToConfig={() => onSelectView('configuracoes')}
         />
 
@@ -43,11 +42,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         </main>
       </div>
 
-      {/* Modal de Supabase e Banco */}
-      <DatabaseModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-      />
+      {/* Modal Técnico de Banco - Apenas em ambiente de desenvolvimento DEV */}
+      {import.meta.env.DEV && (
+        <DatabaseModal
+          isOpen={isDbModalOpen}
+          onClose={() => setIsDbModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

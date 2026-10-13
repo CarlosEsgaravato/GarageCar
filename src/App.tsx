@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginView } from './components/auth/LoginView';
 import { AppLayout } from './components/layout/AppLayout';
 import { NavItemKey } from './components/layout/Sidebar';
-import { PhaseOneOverview } from './components/views/PhaseOneOverview';
 import { DashboardView } from './components/views/DashboardView';
 import { ServiceCatalogView } from './components/views/ServiceCatalogView';
 import { ClientsView } from './components/views/ClientsView';
@@ -51,11 +50,13 @@ const MainApp: React.FC = () => {
   if (!user && !isDemoMode) {
     return (
       <>
-        <LoginView onOpenDbModal={() => setIsDbModalOpen(true)} />
-        <DatabaseModal
-          isOpen={isDbModalOpen}
-          onClose={() => setIsDbModalOpen(false)}
-        />
+        <LoginView />
+        {import.meta.env.DEV && (
+          <DatabaseModal
+            isOpen={isDbModalOpen}
+            onClose={() => setIsDbModalOpen(false)}
+          />
+        )}
       </>
     );
   }
@@ -115,17 +116,12 @@ const MainApp: React.FC = () => {
       case 'relatorios':
         return <ReportsView />;
       case 'configuracoes':
-        return (
-          <ConfigurationView
-            onOpenDbModal={() => setIsDbModalOpen(true)}
-          />
-        );
+        return <ConfigurationView />;
       default:
         return (
           <ModulePlaceholderView
             viewKey={currentView}
             onNavigateToPhaseOne={() => setCurrentView('dashboard')}
-            onOpenDbModal={() => setIsDbModalOpen(true)}
           />
         );
     }
@@ -137,10 +133,12 @@ const MainApp: React.FC = () => {
         {renderCurrentView()}
       </AppLayout>
 
-      <DatabaseModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-      />
+      {import.meta.env.DEV && (
+        <DatabaseModal
+          isOpen={isDbModalOpen}
+          onClose={() => setIsDbModalOpen(false)}
+        />
+      )}
     </>
   );
 };
